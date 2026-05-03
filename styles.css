@@ -31,3 +31,125 @@
     gap: 12px;
     flex-wrap: wrap;
 }
+.jira-settings-layout {
+    display: flex;
+    height: 100%;
+}
+
+.jira-sidebar {
+    width: 220px;
+    border-right: 1px solid var(--background-modifier-border);
+    padding: 10px;
+}
+
+.jira-sidebar-item {
+    padding: 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    margin-bottom: 4px;
+    opacity: 0.8;
+    transition: all 0.15s ease;
+}
+
+.jira-sidebar-item:hover {
+    background: var(--background-modifier-hover);
+    opacity: 1;
+}
+
+.jira-sidebar-item.active {
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+    opacity: 1;
+    font-weight: 600;
+}
+
+.jira-content {
+    flex: 1;
+    padding: 16px;
+}
+
+.jira-card {
+    background: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 16px;
+}
+
+.jira-mapping {
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 8px;
+    margin-top: 10px;
+}
+
+.jira-mapping-header {
+    padding: 8px;
+    cursor: pointer;
+    font-weight: 500;
+    background: var(--background-secondary);
+}
+
+.jira-mapping-body {
+    padding: 8px;
+}
+
+.collapsed {
+    display: none;
+}
+
+.jira-add-btn {
+    margin-bottom: 10px;
+    margin-right: 8px;
+}
+
+.jira-mapping-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    padding: 8px;
+    font-weight: 500;
+    background: var(--background-secondary);
+    border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.jira-mapping-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.jira-collapse-arrow {
+    transition: transform 0.15s ease;
+    font-size: 12px;
+    opacity: 0.7;
+    display: inline-block
+}
+
+.jira-collapse-arrow.rotated {
+    transform: rotate(90deg);
+}
+
+.jira-mapping-body {
+    padding: 8px;
+}
+
+.collapsed {
+    display: none;
+}
+
+.jira-collapse-all-btn,
+.jira-expand-all-btn {
+    margin-right: 8px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--background-modifier-border);
+    background: var(--background-secondary);
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.jira-collapse-all-btn:hover,
+.jira-expand-all-btn:hover {
+    background: var(--background-modifier-hover);
+}

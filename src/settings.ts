@@ -34,6 +34,7 @@ export const DEFAULT_SETTINGS: JiraTicketDataFetcherSettings = {
 
 export class SampleSettingTab extends PluginSettingTab {
 	plugin: JiraTicketDataFetcher;
+	activeSection: string = "connection";
 
 	constructor(app: App, plugin: JiraTicketDataFetcher) {
 		super(app, plugin);
@@ -41,121 +42,254 @@ export class SampleSettingTab extends PluginSettingTab {
 	}
 
 	display(): void {
-		const {containerEl} = this;
+	    const { containerEl } = this;
+	    containerEl.empty();
 
-		containerEl.empty();
+	    const layout = containerEl.createDiv("jira-settings-layout");
 
-		new Setting(containerEl)
-		    .setName('Jira Base URL')
-			.setDesc('The base URL of your Jira instance')
-			.addText(text => text 
-				.setPlaceholder('https://your-domain.atlassian.net')
-				.setValue(this.plugin.settings.jiraBaseUrl)
-				.onChange(async (value) => {
-					this.plugin.settings.jiraBaseUrl = value;
-					await this.plugin.saveSettings();
-				})
+	    const sidebar = layout.createDiv("jira-sidebar");
+	    const content = layout.createDiv("jira-content");
+
+	    this.renderSidebar(sidebar, content);
+	}
+
+	renderSidebar(sidebar: HTMLElement, content: HTMLElement) {
+
+	    const sections = [
+	        { id: "connection", name: "Jira Connection" },
+	        // { id: "sync", name: "Sync Behavior" },
+	        { id: "fields", name: "Field Mappings" },
+	        // { id: "alias", name: "Alias Settings" }
+	    ];
+
+		const setActive = (id: string) => {
+			this.activeSection = id;
+
+			sidebar.querySelectorAll(".jira-sidebar-item")
+				.forEach(el => el.removeClass("active"));
+
+			const activeBtn = sidebar.querySelector(
+				`[data-section-id="${id}"]`
 			);
 
-		new Setting(containerEl)
-			.setName('Jira Email')
-			.setDesc('The email associated with your Jira account')
-			.addText(text => text
-				.setPlaceholder('your-email@example.com')
-				.setValue(this.plugin.settings.jiraEmail)
-				.onChange(async (value) => {
-					this.plugin.settings.jiraEmail = value;
-					await this.plugin.saveSettings();
-				})
-			);
-		
-		new Setting(containerEl)
-			.setName('Jira API Token')
-			.setDesc('Your Jira API token (you can create one in your Jira account settings)')
+			activeBtn?.addClass("active");
+		}
+
+	    sections.forEach(section => {
+	        const btn = sidebar.createEl("div", {
+	            text: section.name,
+	            cls: "jira-sidebar-item"
+	        });
+
+			btn.setAttribute("data-section-id", section.id)
+
+	        btn.addEventListener("click", () => {
+	            content.empty();
+	            this.renderSection(section.id, content);
+
+				setActive(section.id);
+	        });
+	    });
+
+	    // default view
+	    setActive(this.activeSection || "connection");
+		this.renderSection(this.activeSection || "connection", content);
+	}
+
+	renderSection(id: string, container: HTMLElement) {
+
+	    container.empty();
+
+	    switch (id) {
+
+	        case "connection":
+	            this.renderConnection(container);
+	            break;
+
+	        // case "sync":
+	        //     this.renderSync(container);
+	        //     break;
+
+	        case "fields":
+	            this.renderFieldMappings(container);
+	            break;
+
+	        // case "alias":
+	        //     this.renderAlias(container);
+	        //     break;
+	    }
+	}
+
+	createCard(container: HTMLElement, title: string) {
+	    const card = container.createDiv("jira-card");
+
+	    card.createEl("h3", { text: title });
+
+	    return card;
+	}
+
+	renderConnection(container: HTMLElement) {
+
+	    const card = this.createCard(container, "Jira Connection");
+
+	    new Setting(card)
+	        .setName("Base URL")
+	        .addText(text =>
+	            text
+	                .setValue(this.plugin.settings.jiraBaseUrl)
+	                .onChange(async v => {
+	                    this.plugin.settings.jiraBaseUrl = v;
+	                    await this.plugin.saveSettings();
+	                })
+	        );
+
+	    new Setting(card)
+	        .setName("Email")
+	        .addText(text =>
+	            text
+	                .setValue(this.plugin.settings.jiraEmail)
+	                .onChange(async v => {
+	                    this.plugin.settings.jiraEmail = v;
+	                    await this.plugin.saveSettings();
+	                })
+	        )
+
+		new Setting(card)
+			.setName("API Token")
 			.addText(text => {
-				text.setPlaceholder('Enter API token')
-				.setValue(this.plugin.settings.jiraApiToken)
-				.onChange(async (value) => {
-					this.plugin.settings.jiraApiToken = value;
-					await this.plugin.saveSettings();
-				});
-			   text.inputEl.type = 'password'; // hide the API token input for security reasons
+				text
+					.setValue(this.plugin.settings.jiraApiToken)
+					.onChange(async v => {
+						this.plugin.settings.jiraApiToken = v;
+						await this.plugin.saveSettings();
+					})
+					text.inputEl.type = 'password';
+				}
+			);
+	}
+
+	renderFieldMappings(container: HTMLElement) {
+
+	    const card = this.createCard(container, "Field Mappings");
+
+	    const addBtn = card.createEl("button", {
+	        text: "Add Mapping",
+	        cls: "jira-add-btn"
+	    });
+
+		const collapseAllBtn = card.createEl("button", {
+			text: "Collapse All",
+			cls: "jira-collapse-all-btn"
+		})
+
+		const expandAllBtn = card.createEl("button", {
+		    text: "Expand All",
+		    cls: "jira-expand-all-btn"
+		});
+		
+	    addBtn.onclick = async () => {
+	        this.plugin.settings.fieldMappings.push({
+	            jiraField: "",
+	            frontmatterProperty: "",
+	            updateOnOpen: true
+	        });
+
+	        await this.plugin.saveSettings();
+	        this.renderSection("fields", container);
+	    };
+
+		collapseAllBtn.onclick = () => {
+			const wrappers = card.querySelectorAll(".jira-mapping");
+			wrappers.forEach(wrapper => {
+				const body = wrapper.querySelector(".jira-mapping-body");
+				const arrow = wrapper.querySelector(".jira-collapse-arrow");
+
+				if (!body || !arrow) return;
+
+				body.classList.add("collapsed")
+				arrow.classList.add("rotated")
+			})
+		}
+
+		expandAllBtn.onclick = () => {
+		    const wrappers = card.querySelectorAll(".jira-mapping");
+				
+		    wrappers.forEach(wrapper => {
+		        const body = wrapper.querySelector(".jira-mapping-body");
+		        const arrow = wrapper.querySelector(".jira-collapse-arrow");
+			
+		        if (!body || !arrow) return;
+			
+		        body.classList.remove("collapsed");
+		        arrow.classList.remove("rotated");
+		    });
+		};
+
+	    this.plugin.settings.fieldMappings.forEach((mapping, index) => {
+
+	        const wrapper = card.createDiv("jira-mapping");
+
+	        // HEADER (collapsible)
+	        const header = wrapper.createDiv("jira-mapping-header");
+
+			const title = header.createDiv("jira-mapping-title");
+
+			title.createSpan({ text: mapping.jiraField || "New Mapping"});
+
+			const arrow = header.createSpan({
+				text: "▶",
+				cls: "jira-collapse-arrow"
+			})
+
+	        const body = wrapper.createDiv("jira-mapping-body");
+
+
+	        header.addEventListener("click", () => {
+			    const isCollapsed = body.classList.toggle("collapsed");
+
+			    arrow.classList.toggle("rotated", isCollapsed);
 			});
 
-		this.plugin.settings.fieldMappings.forEach((mapping, index) => {
+	        // fields inside collapsible body
+	        new Setting(body)
+	            .setName("Jira field")
+	            .addText(t =>
+	                t.setValue(mapping.jiraField)
+	                    .onChange(async v => {
+	                        mapping.jiraField = v;
+	                        await this.plugin.saveSettings();
+	                    })
+	            );
 
-		    const wrapper = containerEl.createDiv("jira-mapping-card");
-				
-		    const header = wrapper.createDiv("jira-mapping-header");
-				
-		    header.createEl("h4", {
-		        text: `Mapping ${index + 1}`
-		    });
-		
-		    const deleteBtn = header.createEl("button", {
-		        text: "Delete"
-		    });
-		
-		    deleteBtn.addEventListener("click", async () => {
-		        this.plugin.settings.fieldMappings.splice(index, 1);
-		        await this.plugin.saveSettings();
-		        this.display();
-		    });
-		
-		    const body = wrapper.createDiv("jira-mapping-body");
-		
-		    // Jira Field
+	        new Setting(body)
+	            .setName("Frontmatter key")
+	            .addText(t =>
+	                t.setValue(mapping.frontmatterProperty)
+	                    .onChange(async v => {
+	                        mapping.frontmatterProperty = v;
+	                        await this.plugin.saveSettings();
+	                    })
+	            );
+
+	        new Setting(body)
+	            .addToggle(t =>
+	                t.setValue(mapping.updateOnOpen)
+	                    .onChange(async v => {
+	                        mapping.updateOnOpen = v;
+	                        await this.plugin.saveSettings();
+	                    })
+	            )
+	            .setName("Update on open");
 		    new Setting(body)
-		        .setName("Jira field")
-		        .setDesc("Field returned from Jira API")
-		        .addText(text =>
-		            text
-		                .setPlaceholder("status.name")
-		                .setValue(mapping.jiraField)
-		                .onChange(async (value) => {
-		                    mapping.jiraField = value;
-		                    await this.plugin.saveSettings();
-		                })
-		        );
-			
-		    // Frontmatter property
-		    new Setting(body)
-		        .setName("Frontmatter key")
-		        .addText(text =>
-		            text
-		                .setPlaceholder("status")
-		                .setValue(mapping.frontmatterProperty)
-		                .onChange(async (value) => {
-		                    mapping.frontmatterProperty = value;
-		                    await this.plugin.saveSettings();
-		                })
-		        );
-			
-		    // Toggles row (more compact)
-		    const toggles = body.createDiv("jira-toggle-row");
-			
-		    new Setting(toggles)
-		        .setName("Update on open")
-		        .addToggle(toggle =>
-		            toggle
-		                .setValue(mapping.updateOnOpen)
-		                .onChange(async (value) => {
-		                    mapping.updateOnOpen = value;
-		                    await this.plugin.saveSettings();
-		                })
-		        );
-			
-		    new Setting(toggles)
+			    .addToggle(t =>
+					t.setValue(mapping.useAsAlias ?? false)
+	                    .onChange(async v => {
+	                        mapping.useAsAlias = v;
+	                        await this.plugin.saveSettings();
+	                    })
+				)
 		        .setName("Use as alias")
-		        .addToggle(toggle =>
-		            toggle
-		                .setValue(mapping.useAsAlias ?? false)
-		                .onChange(async (value) => {
-		                    mapping.useAsAlias = value;
-		                    await this.plugin.saveSettings();
-		                })
-		        );
-			
+
 		    // Alias template
 		    new Setting(body)
 		        .setName("Alias template")
@@ -169,21 +303,18 @@ export class SampleSettingTab extends PluginSettingTab {
 		                    await this.plugin.saveSettings();
 		                })
 		        );
-		});
 
-		new Setting(containerEl)
-			.setName('Add Field Mapping')
-			.addButton(button => 
-				button.setButtonText('Add')
-					.onClick(async () => {
-						this.plugin.settings.fieldMappings.push({
-							jiraField: '',
-							frontmatterProperty: '',
-							updateOnOpen: true
-						});
-						await this.plugin.saveSettings();
-						this.display(); // Refresh the settings UI
-					})
-			)
+	        new Setting(body)
+	            .addButton(btn =>
+	                btn
+	                    .setButtonText("Delete")
+	                    .setWarning()
+	                    .onClick(async () => {
+	                        this.plugin.settings.fieldMappings.splice(index, 1);
+	                        await this.plugin.saveSettings();
+	                        this.renderSection("fields", container);
+	                    })
+	            );
+	    });
 	}
 }
