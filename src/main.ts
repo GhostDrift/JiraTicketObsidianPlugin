@@ -1,4 +1,4 @@
-import {App, Editor, MarkdownView, Modal, Notice, Plugin} from 'obsidian';
+import {App, Modal, Notice, Plugin, TFile} from 'obsidian';
 import {DEFAULT_SETTINGS, JiraTicketDataFetcherSettings, SampleSettingTab} from "./settings";
 import {fetchJiraIssue, JiraIssue, JiraSettings} from "./jira-api";
 
@@ -19,10 +19,46 @@ export default class JiraTicketDataFetcher extends Plugin {
 		return issue;
 	}
 
+	async updateJiraFrontmatter(file: TFile){
+		const issueKey = file.basename;
+
+		//Jira key validation
+		const jiraPattern = /^[A-Z]+-\d+$/i;
+        console.log("issueKey:", issueKey);
+		if (!jiraPattern.test(issueKey)) {
+			console.log("Filename does not match Jira issue key pattern, skipping:", issueKey);
+			return;
+		};
+
+		try {
+			console.log("in try block, fetching issue for key:", issueKey);
+			const jiraIssue = await this.fetchJiraIssue(issueKey);
+            console.log("jira issue fields:", jiraIssue.fields);
+			if (!jiraIssue?.fields) return;
+
+			await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
+				frontmatter.summary = jiraIssue.fields.summary;
+            	frontmatter.status = jiraIssue.fields.status?.name;
+            	frontmatter.assignee = jiraIssue.fields.assignee?.displayName;
+            	frontmatter.severity = jiraIssue.fields.customfield_10072;
+			});
+		} catch (err) {
+			console.error("Failed updating jira frontmatter", err);
+		}
+
+	}
+
 	async onload() {
 		await this.loadSettings();
 
+		this.registerEvent(
+			this.app.workspace.on('file-open', async (file) => {
+				console.log("file opened:", file?.path);
+				if (!file) return;
 
+				await this.updateJiraFrontmatter(file);
+			})
+		);
 		// Expose API for other plugins/scripts
 		this.api = {
 			fetchJiraIssue: this.fetchJiraIssue.bind(this)
