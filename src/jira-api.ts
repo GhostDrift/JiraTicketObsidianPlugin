@@ -19,6 +19,7 @@ export interface JiraSettings {
     jiraBaseUrl: string;
     jiraEmail: string;
     jiraApiToken: string;
+    jiraFields?: string; //optional uses defaults if not set
 }
 
 // helper to create the authorization header for jira api
@@ -43,7 +44,12 @@ export async function fetchJiraIssue(issueKey: string, settings: JiraSettings): 
     if (!/^https?:\/\//i.test(baseUrl)) {
         throw new Error('Jira base URL must begin with https://');
     }
-    const url = `${baseUrl}/rest/api/3/issue/${issueKey}`;
+
+    //Build the fields parameter from the settings
+    const fields = settings.jiraFields ? settings.jiraFields.split(',').map(f => f.trim()).filter(f => f) : ['summary','status','assignee','description'];
+    const fieldParams = fields.join(',');
+
+    const url = `${baseUrl}/rest/api/3/issue/${issueKey}?fields=${fieldParams}`;
 
     //Get the auth header
     const authHeader = getJiraAuthHeader(settings);
@@ -59,15 +65,9 @@ export async function fetchJiraIssue(issueKey: string, settings: JiraSettings): 
             Accept: 'application/json'
         }
     })
-    // const response = await fetch(url, {
-    //     method: 'GET',
-    //     headers: {
-    //         'Authorization': authHeader,
-    //         'Accept': 'application/json'
-    //     },
-    // });
 
     //check if the request was successful
+    console.log("Jira API response status:", response.status);
     if(response.status !== 200) {
         if (response.status === 401) {
         throw new Error("Authentication failed. check your jira email and API token in the plugin settings.");

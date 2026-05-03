@@ -5,12 +5,14 @@ export interface JiraTicketDataFetcherSettings {
 	jiraBaseUrl: string;
 	jiraEmail: string;
 	jiraApiToken: string;
+	jiraFields: string; //comma-separated list of additional fields to fetch
 }
 
 export const DEFAULT_SETTINGS: JiraTicketDataFetcherSettings = {
 	jiraBaseUrl: '',
 	jiraEmail: '',
-	jiraApiToken: ''
+	jiraApiToken: '',
+	jiraFields: 'status,assignee,description,summary' //default fields to fetch
 }
 
 export class SampleSettingTab extends PluginSettingTab {
@@ -62,6 +64,17 @@ export class SampleSettingTab extends PluginSettingTab {
 				});
 			   text.inputEl.type = 'password'; // hide the API token input for security reasons
 			});
-			
+
+		new Setting(containerEl)
+			.setName('Jira Fields')
+			.setDesc('Comma-separated list of fields to fetch')
+			.addText(text => text
+				.setPlaceholder('status,assignee,description,summary')
+				.setValue(this.plugin.settings.jiraFields)
+				.onChange(async (value) => {
+					this.plugin.settings.jiraFields = value;
+					await this.plugin.saveSettings();
+				})
+			);
 	}
 }
