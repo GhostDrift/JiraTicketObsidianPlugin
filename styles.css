@@ -1,8 +1,33 @@
-/*
+.jira-mapping-card {
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 12px;
+    background: var(--background-secondary);
+}
 
-This CSS file will be included with your plugin, and
-available in the app when your plugin is enabled.
+.jira-mapping-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
 
-If your plugin does not need CSS, delete this file.
+.jira-mapping-header h4 {
+    margin: 0;
+}
 
-*/
+.jira-mapping-header button {
+    background: var(--text-error);
+    color: white;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.jira-toggle-row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}

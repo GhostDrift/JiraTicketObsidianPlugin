@@ -1,5 +1,5 @@
 //Handles JIRA API calls
-import { requestUrl } from "obsidian";
+import { requestUrl, TFile } from "obsidian";
 
 export interface JiraIssue {
     key: string;
@@ -15,11 +15,19 @@ export interface JiraIssue {
     }
 }
 
+export interface JiraFieldMapping {
+    jiraField: string;
+    frontmatterProperty: string;
+    updateOnOpen: boolean; //whether to update this field when the file is opened
+    useAsAlias?: boolean; //whether to use this field as an alias in Obsidian (can be used for fields like summary)
+    aliasTemplate?: string; //template for the alias property
+}
+
 export interface JiraSettings {
     jiraBaseUrl: string;
     jiraEmail: string;
     jiraApiToken: string;
-    jiraFields?: string; //optional uses defaults if not set
+    fieldMappings: JiraFieldMapping[]; //array of field mappings
 }
 
 // helper to create the authorization header for jira api
@@ -33,7 +41,7 @@ export function getJiraAuthHeader(settings: JiraSettings): string {
 }
 
 //Main function to fetch a Jira issue
-export async function fetchJiraIssue(issueKey: string, settings: JiraSettings): Promise<JiraIssue> {
+export async function fetchJiraIssue(issueKey: string, settings: JiraSettings, updateOnOpen: boolean): Promise<JiraIssue> {
     //check if settings are complete
     if (!settings.jiraBaseUrl || !settings.jiraEmail || !settings.jiraApiToken) {
         throw new Error('Jira settings are incomplete. Please fill in all fields in the plugin settings.');
@@ -46,8 +54,16 @@ export async function fetchJiraIssue(issueKey: string, settings: JiraSettings): 
     }
 
     //Build the fields parameter from the settings
-    const fields = settings.jiraFields ? settings.jiraFields.split(',').map(f => f.trim()).filter(f => f) : ['summary','status','assignee','description'];
-    const fieldParams = fields.join(',');
+    var fieldParams = ''
+    if (updateOnOpen) {
+        fieldParams = [
+            ...new Set(settings.fieldMappings.filter(m => m.updateOnOpen).map(m => m.jiraField.trim().split(".")[0]).filter(Boolean))
+        ].join(',');
+    } else {
+        fieldParams = [
+            ...new Set(settings.fieldMappings.filter(m => m.jiraField?.trim()).map(m => m.jiraField.trim().split(".")[0]))
+        ].join(',');
+    }
 
     const url = `${baseUrl}/rest/api/3/issue/${issueKey}?fields=${fieldParams}`;
 
@@ -81,4 +97,19 @@ export async function fetchJiraIssue(issueKey: string, settings: JiraSettings): 
     //parse the json response
 
     return response.json as JiraIssue;
+}
+
+
+export function getNestedValue(obj: any, path: string) {
+        return path.split('.').reduce((current, key) => {
+            return current?.[key];
+        }, obj);
+    }
+
+export function resolveTemplate(template:string, jiraIssue: JiraIssue) {
+    console.log("template:", template);
+    return template.replace(/\{([^}]+)\}/g, (_, path) => {
+        console.log("resolving path:", path);
+        return getNestedValue(jiraIssue.fields, path) ?? "";
+    })
 }
