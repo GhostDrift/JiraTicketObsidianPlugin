@@ -1,5 +1,5 @@
 import {App, PluginSettingTab, Setting} from "obsidian";
-import JiraTicketDataFetcher from "./main";
+import type JiraTicketDataFetcher from "./main";
 import { JiraFieldMapping } from "jira-api";
 
 export interface JiraTicketDataFetcherSettings {
@@ -32,7 +32,7 @@ export const DEFAULT_SETTINGS: JiraTicketDataFetcherSettings = {
 	] //default fields to fetch
 }
 
-export class SampleSettingTab extends PluginSettingTab {
+export class JiraTicketDataFetcherSettingsTab extends PluginSettingTab {
 	plugin: JiraTicketDataFetcher;
 	activeSection: string = "connection";
 
@@ -122,7 +122,7 @@ export class SampleSettingTab extends PluginSettingTab {
 
 	createCard(container: HTMLElement, title: string) {
 	    const card = container.createDiv("jira-card");
-
+		// eslint-disable-next-line obsidianmd/settings-tab/no-manual-html-headings
 	    card.createEl("h3", { text: title });
 
 	    return card;
@@ -155,7 +155,7 @@ export class SampleSettingTab extends PluginSettingTab {
 	        )
 
 		new Setting(card)
-			.setName("API Token")
+			.setName("API token")
 			.addText(text => {
 				text
 					.setValue(this.plugin.settings.jiraApiToken)
@@ -173,17 +173,17 @@ export class SampleSettingTab extends PluginSettingTab {
 	    const card = this.createCard(container, "Field Mappings");
 
 	    const addBtn = card.createEl("button", {
-	        text: "Add Mapping",
+	        text: "Add mapping",
 	        cls: "jira-add-btn"
 	    });
 
 		const collapseAllBtn = card.createEl("button", {
-			text: "Collapse All",
+			text: "Collapse all",
 			cls: "jira-collapse-all-btn"
 		})
 
 		const expandAllBtn = card.createEl("button", {
-		    text: "Expand All",
+		    text: "Expand all",
 		    cls: "jira-expand-all-btn"
 		});
 		
@@ -213,7 +213,7 @@ export class SampleSettingTab extends PluginSettingTab {
 
 		expandAllBtn.onclick = () => {
 		    const wrappers = card.querySelectorAll(".jira-mapping");
-				
+
 		    wrappers.forEach(wrapper => {
 		        const body = wrapper.querySelector(".jira-mapping-body");
 		        const arrow = wrapper.querySelector(".jira-collapse-arrow");

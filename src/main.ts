@@ -1,5 +1,5 @@
 import {App, Modal, Notice, Plugin, TFile} from 'obsidian';
-import {DEFAULT_SETTINGS, JiraTicketDataFetcherSettings, SampleSettingTab} from "./settings";
+import {DEFAULT_SETTINGS, JiraTicketDataFetcherSettings, JiraTicketDataFetcherSettingsTab} from "./settings";
 import {fetchJiraIssue, JiraIssue, JiraSettings, getNestedValue, resolveTemplate} from "./jira-api";
 
 // Remember to rename these classes and interfaces!
@@ -15,7 +15,6 @@ export default class JiraTicketDataFetcher extends Plugin {
 	//public method for scripts to fetch issues directly
 	async fetchJiraIssue(issueKey: string, updateOnOpen?: boolean): Promise<JiraIssue> {
 		const issue = await fetchJiraIssue(issueKey, this.settings as JiraSettings, updateOnOpen ?? false);
-		this.lastFetchedIssue = issue; // Store the fetched issue for later use
 		return issue;
 	}
 
@@ -24,21 +23,23 @@ export default class JiraTicketDataFetcher extends Plugin {
 
 		//Jira key validation
 		const jiraPattern = /^[A-Z]+-\d+$/i;
-        console.log("issueKey:", issueKey);
+        console.debug("issueKey:", issueKey,);
 		if (!jiraPattern.test(issueKey)) {
-			console.log("Filename does not match Jira issue key pattern, skipping:", issueKey);
+			console.debug("Filename does not match Jira issue key pattern, skipping:", issueKey);
 			return;
 		};
 
 		try {
-			console.log("in try block, fetching issue for key:", issueKey);
+			console.debug("in try block, fetching issue for key:", issueKey);
 			const jiraIssue = await this.fetchJiraIssue(issueKey, true);
-            console.log("jira issue fields:", jiraIssue.fields);
+            console.debug("jira issue fields:", jiraIssue.fields);
 			if (!jiraIssue?.fields) return;
 
 			await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
 
 				const aliasParts: string[] = [];
+
+				const fm = frontmatter as Record<string, unknown>
 				
 				for (const mapping of this.settings.fieldMappings) {
 					if (!mapping.updateOnOpen) continue; //skip fields that are not set to update on open
@@ -46,29 +47,29 @@ export default class JiraTicketDataFetcher extends Plugin {
 					const value = getNestedValue(jiraIssue.fields, mapping.jiraField);
 
 					if (value !== undefined) {
-						frontmatter[mapping.frontmatterProperty] = value;
+						fm[mapping.frontmatterProperty] = value;
 					}
 
 					if (mapping.useAsAlias) {
 						if (mapping.aliasTemplate) {
 							aliasParts.push(resolveTemplate(mapping.aliasTemplate, jiraIssue));
 						} else {
-							aliasParts.push(value);
+							aliasParts.push(String(value));
 						}
 					}
 				}
 
-				const existingAliases = frontmatter.aliases;
+				let aliases: string[] = [];
 
-				let normalized: string[] = [];
+				const existing = fm.aliases;
 
-				if (Array.isArray(existingAliases)) {
-					normalized = [...existingAliases];
-				} else if (typeof existingAliases === "string" && existingAliases.length > 0) {
-					normalized = existingAliases.split(',').map(s => s.trim());
+				if (Array.isArray(existing)) {
+				    aliases = existing.map(v => String(v));
+				} else if (typeof existing === "string") {
+				    aliases = existing.split(",").map(s => s.trim());
 				}
 
-				frontmatter.aliases = Array.from(new Set([...normalized, ...aliasParts]));
+				fm.aliases = Array.from(new Set([...aliases, ...aliasParts]));
 			});
 		
 		} catch (err) {
@@ -82,7 +83,7 @@ export default class JiraTicketDataFetcher extends Plugin {
 
 		this.registerEvent(
 			this.app.workspace.on('file-open', async (file) => {
-				console.log("file opened:", file?.path);
+				console.debug("file opened:", file?.path);
 				if (!file) return;
 
 				await this.updateJiraFrontmatter(file);
@@ -96,12 +97,12 @@ export default class JiraTicketDataFetcher extends Plugin {
 		//add command to fetch the jira issue and it's data.
 		this.addCommand({
 			id: 'jira-fetch-issue',
-			name: 'Fetch Jira issue by key',
+			name: 'Fetch jira issue by key',
 			callback: () => {
 				new JiraKeyPromptModal(this.app, async (issueKey: string) => {
 					try {
 						const issue = await fetchJiraIssue(issueKey, this.settings as JiraSettings, false);
-						console.log("Fetched issue:", issue);
+						console.debug("Fetched issue:", issue);
 						new Notice(`Fetched issue ${issue.key}: ${issue.fields.summary}`);
 						// Here you could also do something with the fetched issue data, like inserting it into the current note.
 					} catch (error) {
@@ -118,7 +119,7 @@ export default class JiraTicketDataFetcher extends Plugin {
 		
 
 		// This adds a settings tab so the user can configure various aspects of the plugin
-		this.addSettingTab(new SampleSettingTab(this.app, this));
+		this.addSettingTab(new JiraTicketDataFetcherSettingsTab(this.app, this as JiraTicketDataFetcher));
 
 
 	}
@@ -146,21 +147,31 @@ class JiraKeyPromptModal extends Modal {
 	onOpen() {
 		const {contentEl} = this;
 
-		contentEl.createEl("h2", { text: "Enter Jira issue key"});
+		contentEl.createEl("h2", { text: "Enter jira issue key"});
 
 		const inputEl = contentEl.createEl("input", {
 			type: "text",
 			placeholder: "e.g. KAN-123",
-		}) as HTMLInputElement;
+		});
 
-		inputEl.style.width = "100%";
-		inputEl.style.marginTop = "0.5rem";
+		inputEl.addClass("Jira-ticket-prompt")
 
-		inputEl.addEventListener("keydown", async (event) => {
-			if (event.key === "Enter"){
-				event.preventDefault();
-				await this.submit(inputEl.value.trim());
-			}
+		// inputEl.style.width = "100%";
+		// inputEl.style.marginTop = "0.5rem";
+
+		// inputEl.addEventListener("keydown", async (event) => {
+		// 	if (event.key === "Enter"){
+		// 		event.preventDefault();
+		// 		await this.submit(inputEl.value.trim());
+		// 	}
+		// });
+
+		inputEl.addEventListener("keydown", (event) => {
+		    if (event.key === "Enter") {
+		        event.preventDefault();
+			
+		        void this.submit(inputEl.value.trim());
+		    }
 		});
 
 		inputEl.focus();
@@ -168,7 +179,7 @@ class JiraKeyPromptModal extends Modal {
 
 	async submit(issueKey: string) {
 		if (!issueKey) {
-			new Notice("Please enter a Jira issue key.");
+			new Notice("Please enter a jira issue key.");
 			return;
 		}
 		await this.onSubmit(issueKey);

@@ -153,3 +153,8 @@
 .jira-expand-all-btn:hover {
     background: var(--background-modifier-hover);
 }
+
+.Jira-ticket-prompt {
+    width: 100%;
+    margin-top: 0.5rem
+}
