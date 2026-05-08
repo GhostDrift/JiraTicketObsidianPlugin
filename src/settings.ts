@@ -7,6 +7,8 @@ export interface JiraTicketDataFetcherSettings {
 	jiraEmail: string;
 	jiraApiToken: string;
 	fieldMappings: JiraFieldMapping[]; //array of field mappings
+	syncOnOpen: boolean;
+	syncInterval: number;
 }
 
 export const DEFAULT_SETTINGS: JiraTicketDataFetcherSettings = {
@@ -23,13 +25,16 @@ export const DEFAULT_SETTINGS: JiraTicketDataFetcherSettings = {
 		}, {
 			jiraField: 'status.name',
 			frontmatterProperty: 'status',
+			useAsAlias: false,
 			updateOnOpen: true
 		}, {
 			jiraField: 'assignee.displayName',
 			frontmatterProperty: 'assignee',
 			updateOnOpen: true
 		}
-	] //default fields to fetch
+	], //default fields to fetch
+	syncOnOpen: true,
+	syncInterval: 15
 }
 
 export class JiraTicketDataFetcherSettingsTab extends PluginSettingTab {
@@ -57,7 +62,7 @@ export class JiraTicketDataFetcherSettingsTab extends PluginSettingTab {
 
 	    const sections = [
 	        { id: "connection", name: "Jira Connection" },
-	        // { id: "sync", name: "Sync Behavior" },
+	        { id: "sync", name: "Sync Behavior" },
 	        { id: "fields", name: "Field Mappings" },
 	        // { id: "alias", name: "Alias Settings" }
 	    ];
@@ -106,9 +111,9 @@ export class JiraTicketDataFetcherSettingsTab extends PluginSettingTab {
 	            this.renderConnection(container);
 	            break;
 
-	        // case "sync":
-	        //     this.renderSync(container);
-	        //     break;
+	        case "sync":
+	            this.renderSync(container);
+	            break;
 
 	        case "fields":
 	            this.renderFieldMappings(container);
@@ -316,5 +321,33 @@ export class JiraTicketDataFetcherSettingsTab extends PluginSettingTab {
 	                    })
 	            );
 	    });
+	}
+
+	renderSync(container: HTMLElement){
+		const card = this.createCard(container, "Sync Settings");
+
+		new Setting(card)
+			.setName("Sync on open")
+			.setDesc("Fetch data from jira on note open, uses note name as jira key")
+			.addToggle(t =>
+				t.setValue(this.plugin.settings.syncOnOpen)
+					.onChange(async v => {
+						this.plugin.settings.syncOnOpen = v;
+						await this.plugin.saveSettings();
+					})
+			)
+		
+		new Setting(card)
+			.setName("Sync interval")
+			.setDesc("The minimum amount of time between sync calls in minutes, reduces API usage.")
+			.addText( text => text
+				.setValue(String(this.plugin.settings.syncInterval))
+				.onChange( async (value) => {
+					text.inputEl.type = "number";
+					this.plugin.settings.syncInterval = Number(value);
+					await this.plugin.saveSettings();
+				})
+
+			);
 	}
 }

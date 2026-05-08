@@ -2,6 +2,8 @@ import {App, Modal, Notice, Plugin, TFile} from 'obsidian';
 import {DEFAULT_SETTINGS, JiraTicketDataFetcherSettings, JiraTicketDataFetcherSettingsTab} from "./settings";
 import {fetchJiraIssue, JiraIssue, JiraSettings, getNestedValue, resolveTemplate} from "./jira-api";
 
+const FRONTMATTER_key = "_JTDFLastSync";
+
 // Remember to rename these classes and interfaces!
 
 export default class JiraTicketDataFetcher extends Plugin {
@@ -16,6 +18,26 @@ export default class JiraTicketDataFetcher extends Plugin {
 	async fetchJiraIssue(issueKey: string, updateOnOpen?: boolean): Promise<JiraIssue> {
 		const issue = await fetchJiraIssue(issueKey, this.settings as JiraSettings, updateOnOpen ?? false);
 		return issue;
+	}
+
+	timeToFetch( file: TFile, intervalMinutes: number): boolean {
+		const cache = this.app.metadataCache.getFileCache(file);
+		const fm = cache?.frontmatter as Record<string,unknown> | undefined;
+		const lastUpdate = fm?.[FRONTMATTER_key];
+
+		if (typeof lastUpdate !== "string") {
+			return true;
+		}
+
+		const lastUpdateTime = new Date(lastUpdate).getTime();
+
+		if (isNaN(lastUpdateTime)) {
+			return true;
+		}
+
+		const intervalMs = intervalMinutes * 60 * 1000;
+
+		return ( Date.now() - lastUpdateTime > intervalMs)
 	}
 
 	async updateJiraFrontmatter(file: TFile){
@@ -70,6 +92,8 @@ export default class JiraTicketDataFetcher extends Plugin {
 				}
 
 				fm.aliases = Array.from(new Set([...aliases, ...aliasParts]));
+
+				fm[FRONTMATTER_key] = new Date().toISOString();
 			});
 		
 		} catch (err) {
@@ -86,7 +110,18 @@ export default class JiraTicketDataFetcher extends Plugin {
 				console.debug("file opened:", file?.path);
 				if (!file) return;
 
-				await this.updateJiraFrontmatter(file);
+				if (this.settings.syncOnOpen) {
+
+					if (this.settings.syncInterval === 0) {
+						await this.updateJiraFrontmatter(file);
+					} else {
+						if (this.timeToFetch(file,this.settings.syncInterval)){
+							await this.updateJiraFrontmatter(file);
+						}
+					}
+					
+				} 
+				
 			})
 		);
 		// Expose API for other plugins/scripts
