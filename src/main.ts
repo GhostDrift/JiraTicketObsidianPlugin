@@ -1,8 +1,6 @@
-import {App, Modal, Notice, Plugin, TFile} from 'obsidian';
+import {App, Modal, Notice, Plugin} from 'obsidian';
 import {DEFAULT_SETTINGS, JiraTicketDataFetcherSettings, JiraTicketDataFetcherSettingsTab} from "./settings";
-import {fetchJiraIssue, JiraIssue, JiraSettings, getNestedValue, resolveTemplate} from "./jira-api";
-
-const FRONTMATTER_key = "_JTDFLastSync";
+import {fetchJiraIssue, JiraIssue, JiraSettings, updateJiraFrontmatter, timeToFetch} from "./jira-api";
 
 // Remember to rename these classes and interfaces!
 
@@ -20,88 +18,6 @@ export default class JiraTicketDataFetcher extends Plugin {
 		return issue;
 	}
 
-	timeToFetch( file: TFile, intervalMinutes: number): boolean {
-		const cache = this.app.metadataCache.getFileCache(file);
-		const fm = cache?.frontmatter as Record<string,unknown> | undefined;
-		const lastUpdate = fm?.[FRONTMATTER_key];
-
-		if (typeof lastUpdate !== "string") {
-			return true;
-		}
-
-		const lastUpdateTime = new Date(lastUpdate).getTime();
-
-		if (isNaN(lastUpdateTime)) {
-			return true;
-		}
-
-		const intervalMs = intervalMinutes * 60 * 1000;
-
-		return ( Date.now() - lastUpdateTime > intervalMs)
-	}
-
-	async updateJiraFrontmatter(file: TFile){
-		const issueKey = file.basename;
-
-		//Jira key validation
-		const jiraPattern = /^[A-Z]+-\d+$/i;
-        console.debug("issueKey:", issueKey,);
-		if (!jiraPattern.test(issueKey)) {
-			console.debug("Filename does not match Jira issue key pattern, skipping:", issueKey);
-			return;
-		};
-
-		try {
-			console.debug("in try block, fetching issue for key:", issueKey);
-			const jiraIssue = await this.fetchJiraIssue(issueKey, true);
-            console.debug("jira issue fields:", jiraIssue.fields);
-			if (!jiraIssue?.fields) return;
-
-			await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
-
-				const aliasParts: string[] = [];
-
-				const fm = frontmatter as Record<string, unknown>
-				
-				for (const mapping of this.settings.fieldMappings) {
-					if (!mapping.updateOnOpen) continue; //skip fields that are not set to update on open
-
-					const value = getNestedValue(jiraIssue.fields, mapping.jiraField);
-
-					if (value !== undefined) {
-						fm[mapping.frontmatterProperty] = value;
-					}
-
-					if (mapping.useAsAlias) {
-						if (mapping.aliasTemplate) {
-							aliasParts.push(resolveTemplate(mapping.aliasTemplate, jiraIssue));
-						} else {
-							aliasParts.push(String(value));
-						}
-					}
-				}
-
-				let aliases: string[] = [];
-
-				const existing = fm.aliases;
-
-				if (Array.isArray(existing)) {
-				    aliases = existing.map(v => String(v));
-				} else if (typeof existing === "string") {
-				    aliases = existing.split(",").map(s => s.trim());
-				}
-
-				fm.aliases = Array.from(new Set([...aliases, ...aliasParts]));
-
-				fm[FRONTMATTER_key] = new Date().toISOString();
-			});
-		
-		} catch (err) {
-			console.error("Failed updating jira frontmatter", err);
-		}
-
-	}
-
 	async onload() {
 		await this.loadSettings();
 
@@ -112,12 +28,8 @@ export default class JiraTicketDataFetcher extends Plugin {
 
 				if (this.settings.syncOnOpen) {
 
-					if (this.settings.syncInterval === 0) {
-						await this.updateJiraFrontmatter(file);
-					} else {
-						if (this.timeToFetch(file,this.settings.syncInterval)){
-							await this.updateJiraFrontmatter(file);
-						}
+					if (timeToFetch(this.app, file,this.settings.syncInterval)){
+						await updateJiraFrontmatter(this.app, file, this.settings, true);
 					}
 					
 				} 
@@ -190,16 +102,6 @@ class JiraKeyPromptModal extends Modal {
 		});
 
 		inputEl.addClass("Jira-ticket-prompt")
-
-		// inputEl.style.width = "100%";
-		// inputEl.style.marginTop = "0.5rem";
-
-		// inputEl.addEventListener("keydown", async (event) => {
-		// 	if (event.key === "Enter"){
-		// 		event.preventDefault();
-		// 		await this.submit(inputEl.value.trim());
-		// 	}
-		// });
 
 		inputEl.addEventListener("keydown", (event) => {
 		    if (event.key === "Enter") {

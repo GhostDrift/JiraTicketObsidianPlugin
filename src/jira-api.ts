@@ -1,6 +1,8 @@
 //Handles JIRA API calls
-import { requestUrl } from "obsidian";
+import { App, requestUrl, TFile } from "obsidian";
 type UnknownRecord = Record<string, unknown>;
+
+const FRONTMATTER_key = "_JTDFLastSync";
 
 export interface JiraIssue {
     key: string;
@@ -107,12 +109,6 @@ export async function fetchJiraIssue(issueKey: string, settings: JiraSettings, u
 }
 
 
-// export function getNestedValue(obj: any, path: string) {
-//         return path.split('.').reduce((current, key) => {
-//             return current?.[key];
-//         }, obj);
-//     }
-
 export function getNestedValue(
     obj: UnknownRecord,
     path: string
@@ -129,13 +125,6 @@ export function getNestedValue(
     }, obj);
 }
 
-// export function resolveTemplate(template:string, jiraIssue: JiraIssue) {
-//     console.log("template:", template);
-//     return template.replace(/\{([^}]+)\}/g, (_, path) => {
-//         console.log("resolving path:", path);
-//         return getNestedValue(jiraIssue.fields, path) ?? "";
-//     })
-// }
 export function resolveTemplate(
     template: string,
     jiraIssue: JiraIssue
@@ -156,4 +145,73 @@ export function resolveTemplate(
         // fallback for objects
         return "";
     });
+}
+
+export function timeToFetch( app: App, file: TFile, intervalMinutes: number): boolean {
+    if (intervalMinutes === 0 ) {
+        return true;
+    }
+	const cache = app.metadataCache.getFileCache(file);
+	const fm = cache?.frontmatter as Record<string,unknown> | undefined;
+	const lastUpdate = fm?.[FRONTMATTER_key];
+	if (typeof lastUpdate !== "string") {
+		return true;
+	}
+	const lastUpdateTime = new Date(lastUpdate).getTime();
+	if (isNaN(lastUpdateTime)) {
+		return true;
+	}
+	const intervalMs = intervalMinutes * 60 * 1000;
+	return ( Date.now() - lastUpdateTime > intervalMs)
+}
+
+export async function updateJiraFrontmatter(app: App, file: TFile, settings: JiraSettings, onOpenOnly: boolean): Promise<void> {
+	const issueKey = file.basename;
+	//Jira key validation
+	const jiraPattern = /^[A-Z]+-\d+$/i;
+    console.debug("issueKey:", issueKey,);
+	if (!jiraPattern.test(issueKey)) {
+		console.debug("Filename does not match Jira issue key pattern, skipping:", issueKey);
+		return;
+	};
+	try {
+		console.debug("in try block, fetching issue for key:", issueKey);
+		const jiraIssue = await fetchJiraIssue(issueKey, settings, onOpenOnly);
+        console.debug("jira issue fields:", jiraIssue.fields);
+		if (!jiraIssue?.fields) return;
+		await app.fileManager.processFrontMatter(file, (frontmatter) => {
+			const aliasParts: string[] = [];
+			const fm = frontmatter as Record<string, unknown>
+			
+			for (const mapping of settings.fieldMappings) {
+                if (onOpenOnly){
+                    if (!mapping.updateOnOpen) continue; //skip fields that are not set to update on open
+                }
+				
+				const value = getNestedValue(jiraIssue.fields, mapping.jiraField);
+				if (value !== undefined) {
+					fm[mapping.frontmatterProperty] = value;
+				}
+				if (mapping.useAsAlias) {
+					if (mapping.aliasTemplate) {
+						aliasParts.push(resolveTemplate(mapping.aliasTemplate, jiraIssue));
+					} else {
+						aliasParts.push(String(value));
+					}
+				}
+			}
+			let aliases: string[] = [];
+			const existing = fm.aliases;
+			if (Array.isArray(existing)) {
+			    aliases = existing.map(v => String(v));
+			} else if (typeof existing === "string") {
+			    aliases = existing.split(",").map(s => s.trim());
+			}
+			fm.aliases = Array.from(new Set([...aliases, ...aliasParts]));
+			fm[FRONTMATTER_key] = new Date().toISOString();
+		});
+	
+	} catch (err) {
+		console.error("Failed updating jira frontmatter", err);
+	}
 }
