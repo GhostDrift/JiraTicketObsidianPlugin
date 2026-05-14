@@ -2,7 +2,7 @@
 import { App, requestUrl, TFile } from "obsidian";
 type UnknownRecord = Record<string, unknown>;
 
-const FRONTMATTER_key = "_JTDFLastSync";
+const FRONTMATTER_key = "JTDFLastSync";
 
 export interface JiraIssue {
     key: string;
@@ -16,6 +16,7 @@ export interface JiraIssue {
         }
         description: string;
     }
+    url: string;
 }
 
 export interface JiraFieldMapping {
@@ -31,6 +32,8 @@ export interface JiraSettings {
     jiraEmail: string;
     jiraApiToken: string;
     fieldMappings: JiraFieldMapping[]; //array of field mappings
+    syncIssueLink: boolean;
+    issueLinkFrontmatter: string;
 }
 
 // helper to create the authorization header for jira api
@@ -68,6 +71,8 @@ export async function fetchJiraIssue(issueKey: string, settings: JiraSettings, u
         ].join(',');
     }
 
+    const jiraUrl = `${baseUrl}/browse/${issueKey}`
+
     const url = `${baseUrl}/rest/api/3/issue/${issueKey}?fields=${fieldParams}`;
 
     //Get the auth header
@@ -104,8 +109,12 @@ export async function fetchJiraIssue(issueKey: string, settings: JiraSettings, u
     if (!data || typeof data !== "object") {
         throw new Error("Invalid Jira response");
     }
+    
+    const myJiraIssue = data as JiraIssue;
 
-    return data as JiraIssue;
+    myJiraIssue.url = jiraUrl;
+
+    return myJiraIssue;
 }
 
 
@@ -165,8 +174,7 @@ export function timeToFetch( app: App, file: TFile, intervalMinutes: number): bo
 	return ( Date.now() - lastUpdateTime > intervalMs)
 }
 
-export async function updateJiraFrontmatter(app: App, file: TFile, settings: JiraSettings, onOpenOnly: boolean): Promise<void> {
-	const issueKey = file.basename;
+export async function updateJiraFrontmatter(app: App, file: TFile, issueKey: string, settings: JiraSettings, onOpenOnly: boolean): Promise<void | JiraIssue>{
 	//Jira key validation
 	const jiraPattern = /^[A-Z]+-\d+$/i;
     console.debug("issueKey:", issueKey,);
@@ -177,7 +185,7 @@ export async function updateJiraFrontmatter(app: App, file: TFile, settings: Jir
 	try {
 		console.debug("in try block, fetching issue for key:", issueKey);
 		const jiraIssue = await fetchJiraIssue(issueKey, settings, onOpenOnly);
-        console.debug("jira issue fields:", jiraIssue.fields);
+        console.debug("jira issue:", jiraIssue);
 		if (!jiraIssue?.fields) return;
 		await app.fileManager.processFrontMatter(file, (frontmatter) => {
 			const aliasParts: string[] = [];
@@ -208,8 +216,16 @@ export async function updateJiraFrontmatter(app: App, file: TFile, settings: Jir
 			    aliases = existing.split(",").map(s => s.trim());
 			}
 			fm.aliases = Array.from(new Set([...aliases, ...aliasParts]));
+
+            // set URL in frontmatter
+            if (settings.syncIssueLink && !onOpenOnly) {
+                fm[settings.issueLinkFrontmatter] = jiraIssue.url
+            }
+
 			fm[FRONTMATTER_key] = new Date().toISOString();
 		});
+
+        return jiraIssue;
 	
 	} catch (err) {
 		console.error("Failed updating jira frontmatter", err);

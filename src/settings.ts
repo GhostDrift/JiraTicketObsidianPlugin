@@ -9,6 +9,8 @@ export interface JiraTicketDataFetcherSettings {
 	fieldMappings: JiraFieldMapping[]; //array of field mappings
 	syncOnOpen: boolean;
 	syncInterval: number;
+	syncIssueLink: boolean;
+	issueLinkFrontmatter: string;
 }
 
 export const DEFAULT_SETTINGS: JiraTicketDataFetcherSettings = {
@@ -34,7 +36,9 @@ export const DEFAULT_SETTINGS: JiraTicketDataFetcherSettings = {
 		}
 	], //default fields to fetch
 	syncOnOpen: true,
-	syncInterval: 15
+	syncInterval: 15,
+	syncIssueLink: false,
+	issueLinkFrontmatter: "url"
 }
 
 export class JiraTicketDataFetcherSettingsTab extends PluginSettingTab {
@@ -63,8 +67,7 @@ export class JiraTicketDataFetcherSettingsTab extends PluginSettingTab {
 	    const sections = [
 	        { id: "connection", name: "Jira Connection" },
 	        { id: "sync", name: "Sync Behavior" },
-	        { id: "fields", name: "Field Mappings" },
-	        // { id: "alias", name: "Alias Settings" }
+	        { id: "fields", name: "Field Mappings" }
 	    ];
 
 		const setActive = (id: string) => {
@@ -119,9 +122,6 @@ export class JiraTicketDataFetcherSettingsTab extends PluginSettingTab {
 	            this.renderFieldMappings(container);
 	            break;
 
-	        // case "alias":
-	        //     this.renderAlias(container);
-	        //     break;
 	    }
 	}
 
@@ -230,6 +230,49 @@ export class JiraTicketDataFetcherSettingsTab extends PluginSettingTab {
 		    });
 		};
 
+		const wrapper = card.createDiv("jira-mapping");
+
+		const header = wrapper.createDiv("jira-mapping-header");
+
+		const title = header.createDiv("jira-mapping-title");
+
+		title.createSpan({text: "Issue Link"});
+
+		const arrow = header.createSpan({
+			text: "▶",
+			cls: "jira-collapse-arrow"
+		})
+
+		const body = wrapper.createDiv("jira-mapping-body");
+
+		body.classList.add("collapsed");
+
+		header.addEventListener("click", () => {
+		    const isCollapsed = body.classList.toggle("collapsed");
+
+		    arrow.classList.toggle("rotated", isCollapsed);
+		});
+
+		new Setting(body)
+			.setName("Save URL to frontmatter")
+			.setDesc("When on, will save the browse url for your issue to the frontmatter key specified below")
+			.addToggle(t => 
+				t.setValue(this.plugin.settings.syncIssueLink)
+					.onChange( async v => {
+						this.plugin.settings.syncIssueLink = v;
+						await this.plugin.saveSettings();
+					})
+			);
+		new Setting(body)
+			.setName("Frontmatter Key")
+			.addText(t =>
+				t.setValue(this.plugin.settings.issueLinkFrontmatter)
+				.onChange( async v => {
+					this.plugin.settings.issueLinkFrontmatter = v;
+					await this.plugin.saveSettings();
+				})
+			)
+
 	    this.plugin.settings.fieldMappings.forEach((mapping, index) => {
 
 	        const wrapper = card.createDiv("jira-mapping");
@@ -247,7 +290,8 @@ export class JiraTicketDataFetcherSettingsTab extends PluginSettingTab {
 			})
 
 	        const body = wrapper.createDiv("jira-mapping-body");
-
+			
+			body.classList.add("collapsed");
 
 	        header.addEventListener("click", () => {
 			    const isCollapsed = body.classList.toggle("collapsed");

@@ -1,4 +1,4 @@
-import {App, Modal, Notice, Plugin} from 'obsidian';
+import {App, Modal, Notice, Plugin, TFile} from 'obsidian';
 import {DEFAULT_SETTINGS, JiraTicketDataFetcherSettings, JiraTicketDataFetcherSettingsTab} from "./settings";
 import {fetchJiraIssue, JiraIssue, JiraSettings, updateJiraFrontmatter, timeToFetch} from "./jira-api";
 
@@ -6,16 +6,36 @@ import {fetchJiraIssue, JiraIssue, JiraSettings, updateJiraFrontmatter, timeToFe
 
 export default class JiraTicketDataFetcher extends Plugin {
 	settings: JiraTicketDataFetcherSettings;
-	lastFetchedIssue: JiraIssue | null = null; // store the last fetched issue for scripts
+	lastFetchedIssue: JiraIssue;
+	private recentlyCreatedFiles = new Set<string>();
 
 	api!: {
-		fetchJiraIssue: (issueKey: string, updateOnOpen?: boolean) => Promise<JiraIssue>;
+		fetchJiraIssue: (issueKey: string, onOpenOnly?: boolean) => Promise<JiraIssue>;
+		updateJiraFrontmatter: (issueKey: string, file: TFile, onOpenOnly?: boolean) => Promise<void>;
+		getLastFetchedIssue: () => JiraIssue;
 	};
 
 	//public method for scripts to fetch issues directly
-	async fetchJiraIssue(issueKey: string, updateOnOpen?: boolean): Promise<JiraIssue> {
-		const issue = await fetchJiraIssue(issueKey, this.settings as JiraSettings, updateOnOpen ?? false);
+	async fetchJiraIssue(issueKey: string, onOpenOnly?: boolean): Promise<JiraIssue> {
+		const issue = await fetchJiraIssue(issueKey, this.settings as JiraSettings, onOpenOnly ?? false);
 		return issue;
+	}
+
+	async updateJiraFrontmatter(issueKey: string, file: TFile, onOpenOnly?: boolean) {
+		// const file = this.app.workspace.getActiveFile();
+		if (!file) {
+			return;
+		}
+		const tempIssue = await updateJiraFrontmatter(this.app, file, issueKey, this.settings, onOpenOnly ?? false);
+
+		if (tempIssue) {
+			this.lastFetchedIssue = tempIssue;
+		}
+
+	}
+
+	getLastFetchedIssue(): JiraIssue {
+		return this.lastFetchedIssue;
 	}
 
 	async onload() {
@@ -26,19 +46,45 @@ export default class JiraTicketDataFetcher extends Plugin {
 				console.debug("file opened:", file?.path);
 				if (!file) return;
 
-				if (this.settings.syncOnOpen) {
+				if (this.settings.syncOnOpen && !this.recentlyCreatedFiles.has(file.path)) {
 
 					if (timeToFetch(this.app, file,this.settings.syncInterval)){
-						await updateJiraFrontmatter(this.app, file, this.settings, true);
+						await this.updateJiraFrontmatter(file.basename, file,  true);
 					}
 					
 				} 
 				
 			})
 		);
+
+		this.app.workspace.onLayoutReady(()=> {
+			this.registerEvent(
+				this.app.vault.on('create', async (file) => {
+					if (!file) return;
+
+					if (file instanceof TFile && file.extension === "md") {
+						console.debug("file created:", file?.path);
+						this.recentlyCreatedFiles.add(file.path)
+						try{
+							if (timeToFetch(this.app, file,this.settings.syncInterval)){
+								await this.updateJiraFrontmatter(file.basename, file,  false);
+							}
+						} finally {
+							window.setTimeout(() => {
+								this.recentlyCreatedFiles.delete(file.path);
+							}, 5000);
+						}
+
+					} 
+
+				})
+			);
+		})
 		// Expose API for other plugins/scripts
 		this.api = {
-			fetchJiraIssue: this.fetchJiraIssue.bind(this)
+			fetchJiraIssue: this.fetchJiraIssue.bind(this),
+			updateJiraFrontmatter: this.updateJiraFrontmatter.bind(this),
+			getLastFetchedIssue: this.getLastFetchedIssue.bind(this)
 		};
 
 		//add command to fetch the jira issue and it's data.
