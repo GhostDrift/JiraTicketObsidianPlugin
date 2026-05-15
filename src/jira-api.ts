@@ -1,5 +1,6 @@
 //Handles JIRA API calls
 import { App, requestUrl, TFile } from "obsidian";
+import { JiraTicketDataFetcherSettings} from "./settings";
 type UnknownRecord = Record<string, unknown>;
 
 const FRONTMATTER_key = "JTDFLastSync";
@@ -27,17 +28,8 @@ export interface JiraFieldMapping {
     aliasTemplate?: string; //template for the alias property
 }
 
-export interface JiraSettings {
-    jiraBaseUrl: string;
-    jiraEmail: string;
-    jiraApiToken: string;
-    fieldMappings: JiraFieldMapping[]; //array of field mappings
-    syncIssueLink: boolean;
-    issueLinkFrontmatter: string;
-}
-
 // helper to create the authorization header for jira api
-export function getJiraAuthHeader(settings: JiraSettings): string {
+export function getJiraAuthHeader(settings: JiraTicketDataFetcherSettings): string {
     //combine email and api token with a colon
     const authString = `${settings.jiraEmail}:${settings.jiraApiToken}`;
     //encode the string in base64 (built-in browser function)
@@ -47,7 +39,7 @@ export function getJiraAuthHeader(settings: JiraSettings): string {
 }
 
 //Main function to fetch a Jira issue
-export async function fetchJiraIssue(issueKey: string, settings: JiraSettings, updateOnOpen: boolean): Promise<JiraIssue> {
+export async function fetchJiraIssue(issueKey: string, settings: JiraTicketDataFetcherSettings, updateOnOpen: boolean): Promise<JiraIssue> {
     //check if settings are complete
     if (!settings.jiraBaseUrl || !settings.jiraEmail || !settings.jiraApiToken) {
         throw new Error('Jira settings are incomplete. Please fill in all fields in the plugin settings.');
@@ -174,7 +166,7 @@ export function timeToFetch( app: App, file: TFile, intervalMinutes: number): bo
 	return ( Date.now() - lastUpdateTime > intervalMs)
 }
 
-export async function updateJiraFrontmatter(app: App, file: TFile, issueKey: string, settings: JiraSettings, onOpenOnly: boolean): Promise<void | JiraIssue>{
+export async function updateJiraFrontmatter(app: App, file: TFile, issueKey: string, settings: JiraTicketDataFetcherSettings, onOpenOnly: boolean): Promise<void | JiraIssue>{
 	//Jira key validation
 	const jiraPattern = /^[A-Z]+-\d+$/i;
     console.debug("issueKey:", issueKey,);

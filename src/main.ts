@@ -1,6 +1,6 @@
 import {App, Modal, Notice, Plugin, TFile} from 'obsidian';
 import {DEFAULT_SETTINGS, JiraTicketDataFetcherSettings, JiraTicketDataFetcherSettingsTab} from "./settings";
-import {fetchJiraIssue, JiraIssue, JiraSettings, updateJiraFrontmatter, timeToFetch} from "./jira-api";
+import {fetchJiraIssue, JiraIssue, updateJiraFrontmatter, timeToFetch} from "./jira-api";
 
 // Remember to rename these classes and interfaces!
 
@@ -17,7 +17,7 @@ export default class JiraTicketDataFetcher extends Plugin {
 
 	//public method for scripts to fetch issues directly
 	async fetchJiraIssue(issueKey: string, onOpenOnly?: boolean): Promise<JiraIssue> {
-		const issue = await fetchJiraIssue(issueKey, this.settings as JiraSettings, onOpenOnly ?? false);
+		const issue = await fetchJiraIssue(issueKey, this.settings as JiraTicketDataFetcherSettings, onOpenOnly ?? false);
 		return issue;
 	}
 
@@ -94,7 +94,7 @@ export default class JiraTicketDataFetcher extends Plugin {
 			callback: () => {
 				new JiraKeyPromptModal(this.app, async (issueKey: string) => {
 					try {
-						const issue = await fetchJiraIssue(issueKey, this.settings as JiraSettings, false);
+						const issue = await fetchJiraIssue(issueKey, this.settings as JiraTicketDataFetcherSettings, false);
 						console.debug("Fetched issue:", issue);
 						new Notice(`Fetched issue ${issue.key}: ${issue.fields.summary}`);
 						// Here you could also do something with the fetched issue data, like inserting it into the current note.
