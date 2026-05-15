@@ -284,7 +284,7 @@ export class JiraTicketDataFetcherSettingsTab extends PluginSettingTab {
 
 			const title = header.createDiv("jira-mapping-title");
 
-			title.createSpan({ text: mapping.jiraField || "New Mapping"});
+			title.createSpan({ text: mapping.frontmatterProperty || "New Mapping"});
 
 			const arrow = header.createSpan({
 				text: "▶",
