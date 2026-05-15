@@ -230,6 +230,7 @@ export class JiraTicketDataFetcherSettingsTab extends PluginSettingTab {
 		    });
 		};
 
+		//Save the issue URL to the frontmatter settings
 		const wrapper = card.createDiv("jira-mapping");
 
 		const header = wrapper.createDiv("jira-mapping-header");
@@ -246,6 +247,7 @@ export class JiraTicketDataFetcherSettingsTab extends PluginSettingTab {
 		const body = wrapper.createDiv("jira-mapping-body");
 
 		body.classList.add("collapsed");
+		arrow.classList.add("rotated")
 
 		header.addEventListener("click", () => {
 		    const isCollapsed = body.classList.toggle("collapsed");
@@ -292,6 +294,7 @@ export class JiraTicketDataFetcherSettingsTab extends PluginSettingTab {
 	        const body = wrapper.createDiv("jira-mapping-body");
 			
 			body.classList.add("collapsed");
+			arrow.classList.add("rotated")
 
 	        header.addEventListener("click", () => {
 			    const isCollapsed = body.classList.toggle("collapsed");
