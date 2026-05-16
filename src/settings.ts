@@ -11,6 +11,8 @@ export interface JiraTicketDataFetcherSettings {
 	syncInterval: number;
 	syncIssueLink: boolean;
 	issueLinkFrontmatter: string;
+	insertLinkIntoNote: boolean;
+	linkMarker: string;
 }
 
 export const DEFAULT_SETTINGS: JiraTicketDataFetcherSettings = {
@@ -38,7 +40,9 @@ export const DEFAULT_SETTINGS: JiraTicketDataFetcherSettings = {
 	syncOnOpen: true,
 	syncInterval: 15,
 	syncIssueLink: false,
-	issueLinkFrontmatter: "url"
+	issueLinkFrontmatter: "url",
+	insertLinkIntoNote: false,
+	linkMarker: ""
 }
 
 export class JiraTicketDataFetcherSettingsTab extends PluginSettingTab {
@@ -255,6 +259,7 @@ export class JiraTicketDataFetcherSettingsTab extends PluginSettingTab {
 		    arrow.classList.toggle("rotated", isCollapsed);
 		});
 
+		//Save the URL to the note frontmatter toggle
 		new Setting(body)
 			.setName("Save URL to frontmatter")
 			.setDesc("When on, will save the browse url for your issue to the frontmatter key specified below")
@@ -265,6 +270,8 @@ export class JiraTicketDataFetcherSettingsTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					})
 			);
+		
+		//The name of the frontmatter property to save the url to. 
 		new Setting(body)
 			.setName("Frontmatter Key")
 			.addText(t =>
@@ -273,7 +280,31 @@ export class JiraTicketDataFetcherSettingsTab extends PluginSettingTab {
 					this.plugin.settings.issueLinkFrontmatter = v;
 					await this.plugin.saveSettings();
 				})
-			)
+			);
+		//Toggle to control if we should attempt to insert the URL into the actual note
+		new Setting(body)
+			.setName("Save To Note")
+			.setDesc("When on will insert the URL into the note after the specified line of text if present in the note when syncing data.")
+			.addToggle( t => 
+				t.setValue(this.plugin.settings.insertLinkIntoNote)
+					.onChange(async v => {
+						this.plugin.settings.insertLinkIntoNote = v;
+						await this.plugin.saveSettings();
+					})
+			);
+		
+		//Line of Text to insert the URL next inside the note if present. 
+		new Setting(body)
+			.setName("url marker")
+			.setDesc("The line of text the plugin will look for to insert the URL next to. EX: ## Jira: will cause the URL to be inserted as such: ## Jira: https://....")
+			.addText(t =>
+				t.setValue(this.plugin.settings.linkMarker)
+					.onChange( async v => {
+						this.plugin.settings.linkMarker = v;
+						await this.plugin.saveSettings();
+					})
+			);
+		
 
 	    this.plugin.settings.fieldMappings.forEach((mapping, index) => {
 

@@ -179,7 +179,7 @@ export async function updateJiraFrontmatter(app: App, file: TFile, issueKey: str
 		const jiraIssue = await fetchJiraIssue(issueKey, settings, onOpenOnly);
         console.debug("jira issue:", jiraIssue);
 		if (!jiraIssue?.fields) return;
-		await app.fileManager.processFrontMatter(file, (frontmatter) => {
+		await app.fileManager.processFrontMatter(file, async (frontmatter) => {
 			const aliasParts: string[] = [];
 			const fm = frontmatter as Record<string, unknown>
 			
@@ -209,9 +209,27 @@ export async function updateJiraFrontmatter(app: App, file: TFile, issueKey: str
 			}
 			fm.aliases = Array.from(new Set([...aliases, ...aliasParts]));
 
-            // set URL in frontmatter
-            if (settings.syncIssueLink && !onOpenOnly) {
-                fm[settings.issueLinkFrontmatter] = jiraIssue.url
+            if (!onOpenOnly){
+                // set URL in frontmatter
+                if (settings.syncIssueLink) {
+                    fm[settings.issueLinkFrontmatter] = jiraIssue.url 
+                }
+                // Insert URL into note
+                if (settings.insertLinkIntoNote && settings.linkMarker != '') {
+                    const urlText = `${jiraIssue.url}\n`;
+                    const fileContent = await app.vault.read(file);
+
+                    let newContent = "";
+                    if (fileContent.includes(settings.linkMarker)) {
+                        newContent = fileContent.replace(
+                            settings.linkMarker, `${settings.linkMarker} ${urlText}`
+                        );
+                    }
+
+                    if (newContent != "") {
+                        await app.vault.modify(file, newContent);
+                    }
+                }
             }
 
 			fm[FRONTMATTER_key] = new Date().toISOString();
