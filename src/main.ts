@@ -1,23 +1,21 @@
 import {App, Modal, Notice, Plugin, TFile} from 'obsidian';
 import {DEFAULT_SETTINGS, JiraTicketDataFetcherSettings, JiraTicketDataFetcherSettingsTab} from "./settings";
-import {fetchJiraIssue, JiraIssue, updateJiraFrontmatter, timeToFetch} from "./jira-api";
+import {fetchJiraIssue, JiraIssue, timeToFetch} from "./jira-api";
 
 // Remember to rename these classes and interfaces!
 
 export default class JiraTicketDataFetcher extends Plugin {
 	settings: JiraTicketDataFetcherSettings;
-	lastFetchedIssue: JiraIssue;
 	private recentlyCreatedFiles = new Set<string>();
 
 	api!: {
 		fetchJiraIssue: (issueKey: string, onOpenOnly?: boolean) => Promise<JiraIssue>;
 		updateJiraFrontmatter: (issueKey: string, file: TFile, onOpenOnly?: boolean) => Promise<void>;
-		getLastFetchedIssue: () => JiraIssue;
 	};
 
 	//public method for scripts to fetch issues directly
 	async fetchJiraIssue(issueKey: string, onOpenOnly?: boolean): Promise<JiraIssue> {
-		const issue = await fetchJiraIssue(issueKey, this.settings as JiraTicketDataFetcherSettings, onOpenOnly ?? false);
+		const issue = await fetchJiraIssue(issueKey, this.settings, {updateOnOpen: onOpenOnly ?? false});
 		return issue;
 	}
 
@@ -26,17 +24,11 @@ export default class JiraTicketDataFetcher extends Plugin {
 		if (!file) {
 			return;
 		}
-		const tempIssue = await updateJiraFrontmatter(this.app, file, issueKey, this.settings, onOpenOnly ?? false);
+		// const tempIssue = await updateJiraFrontmatter(this.app, file, issueKey, this.settings, onOpenOnly ?? false);
 
-		if (tempIssue) {
-			this.lastFetchedIssue = tempIssue;
-		}
 
 	}
 
-	getLastFetchedIssue(): JiraIssue {
-		return this.lastFetchedIssue;
-	}
 
 	async onload() {
 		await this.loadSettings();
@@ -83,8 +75,7 @@ export default class JiraTicketDataFetcher extends Plugin {
 		// Expose API for other plugins/scripts
 		this.api = {
 			fetchJiraIssue: this.fetchJiraIssue.bind(this),
-			updateJiraFrontmatter: this.updateJiraFrontmatter.bind(this),
-			getLastFetchedIssue: this.getLastFetchedIssue.bind(this)
+			updateJiraFrontmatter: this.updateJiraFrontmatter.bind(this)
 		};
 
 		//add command to fetch the jira issue and it's data.
@@ -94,9 +85,9 @@ export default class JiraTicketDataFetcher extends Plugin {
 			callback: () => {
 				new JiraKeyPromptModal(this.app, async (issueKey: string) => {
 					try {
-						const issue = await fetchJiraIssue(issueKey, this.settings as JiraTicketDataFetcherSettings, false);
+						const issue = await fetchJiraIssue(issueKey, this.settings, {updateOnOpen: false});
 						console.debug("Fetched issue:", issue);
-						new Notice(`Fetched issue ${issue.key}: ${issue.fields.summary}`);
+						// new Notice(`Fetched issue ${issue.key}: ${issue.fields.summary}`);
 						// Here you could also do something with the fetched issue data, like inserting it into the current note.
 					} catch (error) {
 						if (error instanceof Error) {

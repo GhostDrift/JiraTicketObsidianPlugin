@@ -7,16 +7,8 @@ const FRONTMATTER_key = "JTDFLastSync";
 
 export interface JiraIssue {
     key: string;
-    fields:{
-        summary: string;
-        status: {
-            name: string;
-        };
-        assignee: {
-            displayName: string;    
-        }
-        description: string;
-    }
+    fields: Record<string, unknown>;
+    names?: Record<string,string>;
     url: string;
 }
 
@@ -26,6 +18,13 @@ export interface JiraFieldMapping {
     updateOnOpen: boolean; //whether to update this field when the file is opened
     useAsAlias?: boolean; //whether to use this field as an alias in Obsidian (can be used for fields like summary)
     aliasTemplate?: string; //template for the alias property
+}
+
+export interface JiraFieldOption {
+    path: string;
+    label: string;
+    exampleValue: string;
+    type: string;
 }
 
 // helper to create the authorization header for jira api
@@ -39,7 +38,7 @@ export function getJiraAuthHeader(settings: JiraTicketDataFetcherSettings): stri
 }
 
 //Main function to fetch a Jira issue
-export async function fetchJiraIssue(issueKey: string, settings: JiraTicketDataFetcherSettings, updateOnOpen: boolean): Promise<JiraIssue> {
+export async function fetchJiraIssue(issueKey: string, settings: JiraTicketDataFetcherSettings, options?: {updateOnOpen?: boolean; allFields?:boolean}): Promise<JiraIssue> {
     //check if settings are complete
     if (!settings.jiraBaseUrl || !settings.jiraEmail || !settings.jiraApiToken) {
         throw new Error('Jira settings are incomplete. Please fill in all fields in the plugin settings.');
@@ -53,7 +52,9 @@ export async function fetchJiraIssue(issueKey: string, settings: JiraTicketDataF
 
     //Build the fields parameter from the settings
     let fieldParams = ''
-    if (updateOnOpen) {
+    if (options?.allFields){
+        fieldParams = "*all";
+    } else if (options?.updateOnOpen) {
         fieldParams = [
             ...new Set(settings.fieldMappings.filter(m => m.updateOnOpen).map(m => m.jiraField.trim().split(".")[0]).filter(Boolean))
         ].join(',');
@@ -65,7 +66,7 @@ export async function fetchJiraIssue(issueKey: string, settings: JiraTicketDataF
 
     const jiraUrl = `${baseUrl}/browse/${issueKey}`
 
-    const url = `${baseUrl}/rest/api/3/issue/${issueKey}?fields=${fieldParams}`;
+    const url = `${baseUrl}/rest/api/3/issue/${issueKey}?fields=${fieldParams}&expand=names`;
 
     //Get the auth header
     const authHeader = getJiraAuthHeader(settings);
@@ -104,6 +105,16 @@ export async function fetchJiraIssue(issueKey: string, settings: JiraTicketDataF
     
     const myJiraIssue = data as JiraIssue;
 
+    settings.lastFetchedIssue = myJiraIssue;
+
+    if (options?.allFields) {
+        extractMappingInfo(myJiraIssue, settings);
+        // console.log("JiraIssue fields:", myJiraIssue.fields);
+        // console.log(`Names:`, myJiraIssue.names);
+        // console.log(`FieldPaths:`, settings.availableFieldPaths);
+        // console.log("fieldOptions:", settings.fieldOptions);
+    }
+    
     myJiraIssue.url = jiraUrl;
 
     return myJiraIssue;
@@ -176,10 +187,10 @@ export async function updateJiraFrontmatter(app: App, file: TFile, issueKey: str
 	};
 	try {
 		console.debug("in try block, fetching issue for key:", issueKey);
-		const jiraIssue = await fetchJiraIssue(issueKey, settings, onOpenOnly);
+		const jiraIssue = await fetchJiraIssue(issueKey, settings, {updateOnOpen: onOpenOnly});
         console.debug("jira issue:", jiraIssue);
 		if (!jiraIssue?.fields) return;
-		await app.fileManager.processFrontMatter(file, async (frontmatter) => {
+		await app.fileManager.processFrontMatter(file, (frontmatter) => {
 			const aliasParts: string[] = [];
 			const fm = frontmatter as Record<string, unknown>
 			
@@ -214,30 +225,148 @@ export async function updateJiraFrontmatter(app: App, file: TFile, issueKey: str
                 if (settings.syncIssueLink) {
                     fm[settings.issueLinkFrontmatter] = jiraIssue.url 
                 }
-                // Insert URL into note
-                if (settings.insertLinkIntoNote && settings.linkMarker != '') {
-                    const urlText = `${jiraIssue.url}\n`;
-                    const fileContent = await app.vault.read(file);
-
-                    let newContent = "";
-                    if (fileContent.includes(settings.linkMarker)) {
-                        newContent = fileContent.replace(
-                            settings.linkMarker, `${settings.linkMarker} ${urlText}`
-                        );
-                    }
-
-                    if (newContent != "") {
-                        await app.vault.modify(file, newContent);
-                    }
-                }
             }
 
 			fm[FRONTMATTER_key] = new Date().toISOString();
 		});
+
+        if (!onOpenOnly && settings.insertLinkIntoNote && settings.linkMarker != '') {
+            // Insert URL into note
+            const urlText = `${jiraIssue.url}\n`;
+            const fileContent = await app.vault.read(file);
+            let newContent = "";
+            if (fileContent.includes(settings.linkMarker)) {
+                newContent = fileContent.replace(
+                    settings.linkMarker, `${settings.linkMarker} ${urlText}`
+                );
+
+                if (newContent != '') {
+                    await app.vault.modify(file, newContent);
+                }
+            }
+        }
 
         return jiraIssue;
 	
 	} catch (err) {
 		console.error("Failed updating jira frontmatter", err);
 	}
+}
+
+export function extractFieldPaths(
+	obj: unknown,
+	parent = ""
+): string[] {
+
+	if (
+		obj === null ||
+		typeof obj !== "object"
+	) {
+		return [];
+	}
+
+	const paths: string[] = [];
+
+	for (const [key, value] of Object.entries(obj)) {
+
+		const currentPath =
+			parent
+				? `${parent}.${key}`
+				: key;
+
+		paths.push(currentPath);
+
+		if (
+			value &&
+			typeof value === "object" &&
+			!Array.isArray(value)
+		) {
+			paths.push(
+				...extractFieldPaths(
+					value,
+					currentPath
+				)
+			);
+		}
+	}
+
+	return paths;
+}
+
+function extractMappingInfo(
+    Issue: JiraIssue, settings: JiraTicketDataFetcherSettings
+) {
+    settings.fieldOptions = buildFieldOptions(extractFieldPaths(Issue.fields),Issue.fields,Issue.names)
+}
+
+function buildFieldOptions(
+    fieldPaths: string[],
+    fields: Record<string,unknown>,
+    names: Record<string, string> = {}
+): JiraFieldOption[] {
+    
+    return fieldPaths.map((path) => {
+        const value = getNestedValue(fields, path);
+
+        return {
+            path,
+            label: getFieldDisplayName(path,names),
+            exampleValue: formatExampleValue(value),
+            type: detectFieldType(value)
+        }
+    })
+}
+
+function getFieldDisplayName(
+    path: string,
+    names: Record<string,string>
+): string {
+    return path.split(".").map((part) => names[part] ?? part).join(" -> ");
+}
+
+function formatExampleValue(
+	value: unknown
+): string {
+
+	if (value == null) {
+		return "";
+	}
+
+	if (
+		typeof value === "string" ||
+		typeof value === "number" ||
+		typeof value === "boolean"
+	) {
+		return String(value);
+	}
+
+	if (Array.isArray(value)) {
+
+		return value
+			.slice(0, 3)
+			.map(v => String(v))
+			.join(", ");
+	}
+
+	if (typeof value === "object") {
+
+		return "{...}";
+	}
+
+	return "";
+}
+
+export function detectFieldType(
+	value: unknown
+): string {
+
+	if (value == null) {
+		return "null";
+	}
+
+	if (Array.isArray(value)) {
+		return "array";
+	}
+
+	return typeof value;
 }

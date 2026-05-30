@@ -1,6 +1,63 @@
-import {App, PluginSettingTab, Setting} from "obsidian";
+import {App, PluginSettingTab, Setting, FuzzySuggestModal, FuzzyMatch} from "obsidian";
 import type JiraTicketDataFetcher from "./main";
-import { JiraFieldMapping } from "jira-api";
+import { JiraFieldMapping, JiraIssue, fetchJiraIssue, JiraFieldOption } from "jira-api";
+
+export class JiraFieldSuggestModal
+	extends FuzzySuggestModal<JiraFieldOption> {
+
+	private fieldOptions: JiraFieldOption[];
+	private onChoose:
+		(option: JiraFieldOption) => void;
+
+	constructor(
+		app: App,
+		fieldOptions: JiraFieldOption[],
+		onChoose: (
+			option: JiraFieldOption
+		) => void
+	) {
+		super(app);
+
+		this.fieldOptions = fieldOptions;
+		this.onChoose = onChoose;
+	}
+
+	getItems(): JiraFieldOption[] {
+		return this.fieldOptions;
+	}
+
+	getItemText(
+		item: JiraFieldOption
+	): string {
+
+		return `${item.label} ${item.path}`;
+	}
+
+	onChooseItem(
+		item: JiraFieldOption
+	): void {
+
+		this.onChoose(item);
+	}
+
+	renderSuggestion(
+	match: FuzzyMatch<JiraFieldOption>,
+	el: HTMLElement
+	): void {
+
+		const item = match.item;
+
+		el.createEl("div", {
+			text: item.label
+		});
+
+		el.createEl("small", {
+			text:
+				`${item.path} • ` +
+				`${item.exampleValue}`
+		});
+	}
+}
 
 export interface JiraTicketDataFetcherSettings {
 	jiraBaseUrl: string;
@@ -13,6 +70,9 @@ export interface JiraTicketDataFetcherSettings {
 	issueLinkFrontmatter: string;
 	insertLinkIntoNote: boolean;
 	linkMarker: string;
+	lastFetchedIssue: JiraIssue | null;
+	sampleKey: string;
+	fieldOptions: JiraFieldOption[];
 }
 
 export const DEFAULT_SETTINGS: JiraTicketDataFetcherSettings = {
@@ -42,7 +102,10 @@ export const DEFAULT_SETTINGS: JiraTicketDataFetcherSettings = {
 	syncIssueLink: false,
 	issueLinkFrontmatter: "url",
 	insertLinkIntoNote: false,
-	linkMarker: ""
+	linkMarker: "",
+	lastFetchedIssue: null,
+	sampleKey: "",
+	fieldOptions: []
 }
 
 export class JiraTicketDataFetcherSettingsTab extends PluginSettingTab {
@@ -178,6 +241,27 @@ export class JiraTicketDataFetcherSettingsTab extends PluginSettingTab {
 	}
 
 	renderFieldMappings(container: HTMLElement) {
+		const jiraIssueCard = this.createCard(container, "Sample Jira Issue");
+
+		new Setting(jiraIssueCard)
+			.setName("Sample key")
+			.setDesc("Enter a ticket number to be used as an example to fetch all available fields for mapping use.")
+			.addText(t => {
+				t.setValue(this.plugin.settings.sampleKey)
+				.setPlaceholder("Enter an issue key, such as cs-1234")
+				.onChange( async v => {
+					this.plugin.settings.sampleKey = v;
+					await this.plugin.saveSettings();
+				});
+			});
+
+		const fetchExampleBtn = jiraIssueCard.createEl("button", {
+			text: "Fetch fields"
+		});
+
+		fetchExampleBtn.onclick = async () => {
+			await fetchJiraIssue(this.plugin.settings.sampleKey, this.plugin.settings, {allFields: true})
+		}
 
 	    const card = this.createCard(container, "Field Mappings");
 
@@ -262,7 +346,7 @@ export class JiraTicketDataFetcherSettingsTab extends PluginSettingTab {
 		//Save the URL to the note frontmatter toggle
 		new Setting(body)
 			.setName("Save URL to frontmatter")
-			.setDesc("When on, will save the browse url for your issue to the frontmatter key specified below")
+			.setDesc("When enabled, saves the browse URL for the issue to the frontmatter key specified below.")
 			.addToggle(t => 
 				t.setValue(this.plugin.settings.syncIssueLink)
 					.onChange( async v => {
@@ -273,7 +357,7 @@ export class JiraTicketDataFetcherSettingsTab extends PluginSettingTab {
 		
 		//The name of the frontmatter property to save the url to. 
 		new Setting(body)
-			.setName("Frontmatter Key")
+			.setName("Frontmatter key")
 			.addText(t =>
 				t.setValue(this.plugin.settings.issueLinkFrontmatter)
 				.onChange( async v => {
@@ -283,20 +367,21 @@ export class JiraTicketDataFetcherSettingsTab extends PluginSettingTab {
 			);
 		//Toggle to control if we should attempt to insert the URL into the actual note
 		new Setting(body)
-			.setName("Save To Note")
+			.setName("Save to note")
 			.setDesc("When on will insert the URL into the note after the specified line of text if present in the note when syncing data.")
 			.addToggle( t => 
 				t.setValue(this.plugin.settings.insertLinkIntoNote)
 					.onChange(async v => {
 						this.plugin.settings.insertLinkIntoNote = v;
 						await this.plugin.saveSettings();
+			
 					})
 			);
 		
 		//Line of Text to insert the URL next inside the note if present. 
 		new Setting(body)
-			.setName("url marker")
-			.setDesc("The line of text the plugin will look for to insert the URL next to. EX: ## Jira: will cause the URL to be inserted as such: ## Jira: https://....")
+			.setName("URL marker")
+			.setDesc("The line of text the plugin will look for to insert the URL next to. For example, ## jira: will cause the URL to be inserted as such: ## jira: https://....")
 			.addText(t =>
 				t.setValue(this.plugin.settings.linkMarker)
 					.onChange( async v => {
@@ -336,14 +421,29 @@ export class JiraTicketDataFetcherSettingsTab extends PluginSettingTab {
 	        // fields inside collapsible body
 	        new Setting(body)
 	            .setName("Jira field")
-	            .addText(t =>
-	                t.setValue(mapping.jiraField)
-	                    .onChange(async v => {
-	                        mapping.jiraField = v;
-	                        await this.plugin.saveSettings();
-	                    })
-	            );
-
+				.addButton(button =>
+					button
+						.setButtonText(
+							mapping.jiraField || "Select Field"
+						)
+						.onClick(() => {
+						
+							new JiraFieldSuggestModal(
+								this.app,
+								this.plugin.settings.fieldOptions,
+							    (option) => {
+								
+									mapping.jiraField =
+										option.path;
+								
+								    void this.plugin.saveSettings()
+								    
+									this.display();
+								}
+							).open();
+						})
+				);
+            
 	        new Setting(body)
 	            .setName("Frontmatter key")
 	            .addText(t =>
