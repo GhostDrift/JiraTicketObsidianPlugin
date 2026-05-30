@@ -28,8 +28,8 @@ export class JiraFieldSuggestModal
 	}
 
 	override onOpen(): void{
-		super.onOpen();
-
+		void super.onOpen();
+		
 		if(this.initialQuery) {
 			this.inputEl.value = this.initialQuery;
 
@@ -477,7 +477,13 @@ export class JiraTicketDataFetcherSettingsTab extends PluginSettingTab {
 	                t.setValue(mapping.frontmatterProperty)
 	                    .onChange(async v => {
 	                        mapping.frontmatterProperty = v;
-							mapping.frontmatterProperty === "" ? mapping.userEnteredFrontmatterProperty = false : mapping.userEnteredFrontmatterProperty = true;
+							
+							if (mapping.frontmatterProperty === "") {
+								mapping.userEnteredFrontmatterProperty = false;
+							} else {
+								mapping.userEnteredFrontmatterProperty = true;
+							}
+							
 	                        await this.plugin.saveSettings();
 	                    })
 	            );
