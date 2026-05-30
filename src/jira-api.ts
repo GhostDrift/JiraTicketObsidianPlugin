@@ -18,6 +18,7 @@ export interface JiraFieldMapping {
     updateOnOpen: boolean; //whether to update this field when the file is opened
     useAsAlias?: boolean; //whether to use this field as an alias in Obsidian (can be used for fields like summary)
     aliasTemplate?: string; //template for the alias property
+    userEnteredFrontmatterProperty: boolean;
 }
 
 export interface JiraFieldOption {
@@ -369,4 +370,21 @@ export function detectFieldType(
 	}
 
 	return typeof value;
+}
+
+export function suggestFrontmatterKey( path: string, label?: string): string {
+    //Prefer the display label if available 
+    const source = label ?? path;
+
+    const words = source.replace(/->/g, " ").replace(/[._-]/g," ").replace(/[^a-zA-Z0-9 ]/g, "").trim().split(/\s+/);
+
+    if (words.length === 0) {
+        return "";
+    }
+
+    return (
+        words[0]?.toLowerCase() + 
+        words.slice(1).map((w => w.charAt(0).toUpperCase() +
+                                 w.slice(1).toLowerCase())).join("")
+    );
 }

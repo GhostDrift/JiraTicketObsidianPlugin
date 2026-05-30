@@ -1,17 +1,21 @@
 import {App, PluginSettingTab, Setting, FuzzySuggestModal, FuzzyMatch} from "obsidian";
 import type JiraTicketDataFetcher from "./main";
-import { JiraFieldMapping, JiraIssue, fetchJiraIssue, JiraFieldOption } from "jira-api";
+import { JiraFieldMapping, JiraIssue, fetchJiraIssue, JiraFieldOption, suggestFrontmatterKey } from "jira-api";
 
 export class JiraFieldSuggestModal
 	extends FuzzySuggestModal<JiraFieldOption> {
+	
+	private initialQuery: string;
 
 	private fieldOptions: JiraFieldOption[];
+
 	private onChoose:
 		(option: JiraFieldOption) => void;
 
 	constructor(
 		app: App,
 		fieldOptions: JiraFieldOption[],
+		initialQuery: string,
 		onChoose: (
 			option: JiraFieldOption
 		) => void
@@ -19,7 +23,21 @@ export class JiraFieldSuggestModal
 		super(app);
 
 		this.fieldOptions = fieldOptions;
+		this.initialQuery = initialQuery;
 		this.onChoose = onChoose;
+	}
+
+	override onOpen(): void{
+		super.onOpen();
+
+		if(this.initialQuery) {
+			this.inputEl.value = this.initialQuery;
+
+			//tell the modal to rerun its search
+			this.inputEl.dispatchEvent(
+				new Event("input")
+			);
+		}
 	}
 
 	getItems(): JiraFieldOption[] {
@@ -85,16 +103,19 @@ export const DEFAULT_SETTINGS: JiraTicketDataFetcherSettings = {
 			frontmatterProperty: 'summary',
 			updateOnOpen: true,
 			useAsAlias: true,
-			aliasTemplate: '{{summary}}'
+			aliasTemplate: '{{summary}}',
+			userEnteredFrontmatterProperty: false
 		}, {
 			jiraField: 'status.name',
 			frontmatterProperty: 'status',
 			useAsAlias: false,
-			updateOnOpen: true
+			updateOnOpen: true,
+			userEnteredFrontmatterProperty: false
 		}, {
 			jiraField: 'assignee.displayName',
 			frontmatterProperty: 'assignee',
-			updateOnOpen: true
+			updateOnOpen: true,
+			userEnteredFrontmatterProperty: false
 		}
 	], //default fields to fetch
 	syncOnOpen: true,
@@ -284,7 +305,8 @@ export class JiraTicketDataFetcherSettingsTab extends PluginSettingTab {
 	        this.plugin.settings.fieldMappings.push({
 	            jiraField: "",
 	            frontmatterProperty: "",
-	            updateOnOpen: true
+	            updateOnOpen: true,
+			    userEnteredFrontmatterProperty: false
 	        });
 
 	        await this.plugin.saveSettings();
@@ -427,14 +449,19 @@ export class JiraTicketDataFetcherSettingsTab extends PluginSettingTab {
 							mapping.jiraField || "Select Field"
 						)
 						.onClick(() => {
-						
+						    const searchText = mapping.userEnteredFrontmatterProperty ? mapping.frontmatterProperty : "";
 							new JiraFieldSuggestModal(
 								this.app,
 								this.plugin.settings.fieldOptions,
+								searchText,
 							    (option) => {
 								
 									mapping.jiraField =
 										option.path;
+
+									if (!mapping.frontmatterProperty && !mapping.userEnteredFrontmatterProperty) {
+										mapping.frontmatterProperty = suggestFrontmatterKey(option.path, option.label);
+									}
 								
 								    void this.plugin.saveSettings()
 								    
@@ -450,6 +477,7 @@ export class JiraTicketDataFetcherSettingsTab extends PluginSettingTab {
 	                t.setValue(mapping.frontmatterProperty)
 	                    .onChange(async v => {
 	                        mapping.frontmatterProperty = v;
+							mapping.frontmatterProperty === "" ? mapping.userEnteredFrontmatterProperty = false : mapping.userEnteredFrontmatterProperty = true;
 	                        await this.plugin.saveSettings();
 	                    })
 	            );
