@@ -1,6 +1,6 @@
 import {App, Modal, Notice, Plugin, TFile} from 'obsidian';
 import {DEFAULT_SETTINGS, JiraTicketDataFetcherSettings, JiraTicketDataFetcherSettingsTab} from "./settings";
-import {fetchJiraIssue, JiraIssue, timeToFetch} from "./jira-api";
+import {fetchJiraIssue, JiraIssue, timeToFetch,updateJiraFrontmatter} from "./jira-api";
 
 // Remember to rename these classes and interfaces!
 
@@ -24,7 +24,7 @@ export default class JiraTicketDataFetcher extends Plugin {
 		if (!file) {
 			return;
 		}
-		// const tempIssue = await updateJiraFrontmatter(this.app, file, issueKey, this.settings, onOpenOnly ?? false);
+		const tempIssue = await updateJiraFrontmatter(this.app, file, issueKey, this.settings, onOpenOnly ?? false);
 
 
 	}
@@ -59,6 +59,7 @@ export default class JiraTicketDataFetcher extends Plugin {
 						this.recentlyCreatedFiles.add(file.path)
 						try{
 							if (timeToFetch(this.app, file,this.settings.syncInterval)){
+								console.debug("Fetching jira issue for newly created file:", file.basename);
 								await this.updateJiraFrontmatter(file.basename, file,  false);
 							}
 						} finally {

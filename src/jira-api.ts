@@ -13,6 +13,7 @@ export interface JiraIssue {
 }
 
 export interface JiraFieldMapping {
+    uuid:string;
     jiraField: string;
     frontmatterProperty: string;
     updateOnOpen: boolean; //whether to update this field when the file is opened
@@ -72,7 +73,7 @@ export async function fetchJiraIssue(issueKey: string, settings: JiraTicketDataF
     //Get the auth header
     const authHeader = getJiraAuthHeader(settings);
 
-    // console.log("jira request URL:", url);
+    console.debug("URL:", url);
     // console.log("Auth header:", authHeader.slice(0, 20) + '...')
     //Make the fetch request 
     const response = await requestUrl({
@@ -85,7 +86,7 @@ export async function fetchJiraIssue(issueKey: string, settings: JiraTicketDataF
     })
 
     //check if the request was successful
-    // console.log("Jira API response status:", response.status);
+    console.debug("Response:", response.status, response.text);
     if(response.status !== 200) {
         if (response.status === 401) {
         throw new Error("Authentication failed. check your jira email and API token in the plugin settings.");
@@ -105,7 +106,7 @@ export async function fetchJiraIssue(issueKey: string, settings: JiraTicketDataF
     }
     
     const myJiraIssue = data as JiraIssue;
-
+    console.debug("myJiraIssue:", myJiraIssue);
     settings.lastFetchedIssue = myJiraIssue;
 
     if (options?.allFields) {

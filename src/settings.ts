@@ -104,18 +104,21 @@ export const DEFAULT_SETTINGS: JiraTicketDataFetcherSettings = {
 			updateOnOpen: true,
 			useAsAlias: true,
 			aliasTemplate: '{{summary}}',
-			userEnteredFrontmatterProperty: false
+			userEnteredFrontmatterProperty: false,
+			uuid: "default-summary"
 		}, {
 			jiraField: 'status.name',
 			frontmatterProperty: 'status',
 			useAsAlias: false,
 			updateOnOpen: true,
-			userEnteredFrontmatterProperty: false
+			userEnteredFrontmatterProperty: false,
+			uuid: "default-status"
 		}, {
 			jiraField: 'assignee.displayName',
 			frontmatterProperty: 'assignee',
 			updateOnOpen: true,
-			userEnteredFrontmatterProperty: false
+			userEnteredFrontmatterProperty: false,
+			uuid: "default-assignee"
 		}
 	], //default fields to fetch
 	syncOnOpen: true,
@@ -132,6 +135,7 @@ export const DEFAULT_SETTINGS: JiraTicketDataFetcherSettings = {
 export class JiraTicketDataFetcherSettingsTab extends PluginSettingTab {
 	plugin: JiraTicketDataFetcher;
 	activeSection: string = "connection";
+	expandedMappings: Set<string> = new Set();
 
 	constructor(app: App, plugin: JiraTicketDataFetcher) {
 		super(app, plugin);
@@ -302,42 +306,33 @@ export class JiraTicketDataFetcherSettingsTab extends PluginSettingTab {
 		});
 		
 	    addBtn.onclick = async () => {
+			const newId = crypto.randomUUID();
 	        this.plugin.settings.fieldMappings.push({
 	            jiraField: "",
 	            frontmatterProperty: "",
 	            updateOnOpen: true,
-			    userEnteredFrontmatterProperty: false
+			    userEnteredFrontmatterProperty: false,
+				uuid: newId
 	        });
+
+			// Add the new mapping to the expanded set so it opens immediately for configuration
+			this.expandedMappings.add(newId);
 
 	        await this.plugin.saveSettings();
 	        this.renderSection("fields", container);
 	    };
 
 		collapseAllBtn.onclick = () => {
-			const wrappers = card.querySelectorAll(".jira-mapping");
-			wrappers.forEach(wrapper => {
-				const body = wrapper.querySelector(".jira-mapping-body");
-				const arrow = wrapper.querySelector(".jira-collapse-arrow");
-
-				if (!body || !arrow) return;
-
-				body.classList.add("collapsed")
-				arrow.classList.add("rotated")
-			})
+			this.expandedMappings.clear();
+			this.renderSection("fields", container);
 		}
 
 		expandAllBtn.onclick = () => {
-		    const wrappers = card.querySelectorAll(".jira-mapping");
 
-		    wrappers.forEach(wrapper => {
-		        const body = wrapper.querySelector(".jira-mapping-body");
-		        const arrow = wrapper.querySelector(".jira-collapse-arrow");
-			
-		        if (!body || !arrow) return;
-			
-		        body.classList.remove("collapsed");
-		        arrow.classList.remove("rotated");
-		    });
+		    this.expandedMappings = new Set(
+				this.plugin.settings.fieldMappings.map(mapping => mapping.uuid)
+			);
+			this.renderSection("fields", container);
 		};
 
 		//Save the issue URL to the frontmatter settings
@@ -431,13 +426,22 @@ export class JiraTicketDataFetcherSettingsTab extends PluginSettingTab {
 
 	        const body = wrapper.createDiv("jira-mapping-body");
 			
-			body.classList.add("collapsed");
-			arrow.classList.add("rotated")
+			const isExpanded = this.expandedMappings.has(mapping.uuid);
+
+			if (!isExpanded) {
+				body.classList.add("collapsed");
+				arrow.classList.add("rotated");
+			}
 
 	        header.addEventListener("click", () => {
 			    const isCollapsed = body.classList.toggle("collapsed");
+				arrow.classList.toggle("rotated", isCollapsed);
 
-			    arrow.classList.toggle("rotated", isCollapsed);
+				if (isCollapsed) {
+					this.expandedMappings.delete(mapping.uuid);
+				} else {
+					this.expandedMappings.add(mapping.uuid);
+				}
 			});
 
 	        // fields inside collapsible body
