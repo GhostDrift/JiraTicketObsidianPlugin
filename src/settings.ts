@@ -234,6 +234,7 @@ export class JiraTicketDataFetcherSettingsTab extends PluginSettingTab {
 	        .addText(text =>
 	            text
 	                .setValue(this.plugin.settings.jiraBaseUrl)
+					.setPlaceholder("https://company.atlassian.net")
 	                .onChange(async v => {
 	                    this.plugin.settings.jiraBaseUrl = v;
 	                    await this.plugin.saveSettings();
@@ -245,6 +246,7 @@ export class JiraTicketDataFetcherSettingsTab extends PluginSettingTab {
 	        .addText(text =>
 	            text
 	                .setValue(this.plugin.settings.jiraEmail)
+					.setPlaceholder("Enter your atalassian email address")
 	                .onChange(async v => {
 	                    this.plugin.settings.jiraEmail = v;
 	                    await this.plugin.saveSettings();
@@ -253,6 +255,7 @@ export class JiraTicketDataFetcherSettingsTab extends PluginSettingTab {
 
 		new Setting(card)
 			.setName("API token")
+			.setDesc("Generate a token at https://id.atlassian.com/manage-profile/security/api-tokens")
 			.addText(text => {
 				text
 					.setValue(this.plugin.settings.jiraApiToken)
@@ -332,6 +335,7 @@ export class JiraTicketDataFetcherSettingsTab extends PluginSettingTab {
 		    this.expandedMappings = new Set(
 				this.plugin.settings.fieldMappings.map(mapping => mapping.uuid)
 			);
+			this.expandedMappings.add("issue-link");
 			this.renderSection("fields", container);
 		};
 
@@ -351,13 +355,22 @@ export class JiraTicketDataFetcherSettingsTab extends PluginSettingTab {
 
 		const body = wrapper.createDiv("jira-mapping-body");
 
-		body.classList.add("collapsed");
-		arrow.classList.add("rotated")
+		const isExpanded = this.expandedMappings.has("issue-link");
+
+		if (!isExpanded) {
+			body.classList.add("collapsed");
+			arrow.classList.add("rotated");
+		}
 
 		header.addEventListener("click", () => {
 		    const isCollapsed = body.classList.toggle("collapsed");
+			arrow.classList.toggle("rotated", isCollapsed);
 
-		    arrow.classList.toggle("rotated", isCollapsed);
+			if (isCollapsed) {
+				this.expandedMappings.delete("issue-link");
+			} else {
+				this.expandedMappings.add("issue-link");
+			}
 		});
 
 		//Save the URL to the note frontmatter toggle
@@ -385,7 +398,7 @@ export class JiraTicketDataFetcherSettingsTab extends PluginSettingTab {
 		//Toggle to control if we should attempt to insert the URL into the actual note
 		new Setting(body)
 			.setName("Save to note")
-			.setDesc("When on will insert the URL into the note after the specified line of text if present in the note when syncing data.")
+			.setDesc("Will insert the URL into the note after the specified line of text if present in the note when syncing data.")
 			.addToggle( t => 
 				t.setValue(this.plugin.settings.insertLinkIntoNote)
 					.onChange(async v => {
