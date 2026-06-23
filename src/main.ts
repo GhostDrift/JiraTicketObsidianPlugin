@@ -72,6 +72,19 @@ export default class JiraTicketDataFetcher extends Plugin {
 
 				})
 			);
+			this.registerEvent(
+				this.app.vault.on("rename", async (file) => {
+					if (!file) return;
+
+					if (file instanceof TFile && file.extension === "md") { 
+						console.debug("file renamed:", file?.path);
+						if (timeToFetch(this.app, file,this.settings.syncInterval)){
+							console.debug("Fetching jira issue for renamed file:", file.basename);
+							await this.updateJiraFrontmatter(file.basename, file,  false);
+						}
+					}
+				} )
+			)
 		})
 		// Expose API for other plugins/scripts
 		this.api = {
