@@ -4,7 +4,7 @@
 	"version": "1.0.0",
 	"minAppVersion": "0.15.0",
 	"description": "Fetches data for Jira tickets directly from Obsidian.",
-	"author": "Obsidian",
+	"author": "Jessica Crowson",
 	"authorUrl": "https://github.com/GhostDrift",
 	"isDesktopOnly": false
 }
