@@ -1,4 +1,4 @@
-import {App, PluginSettingTab, Setting, FuzzySuggestModal, FuzzyMatch} from "obsidian";
+import {App, PluginSettingTab, Setting, FuzzySuggestModal, FuzzyMatch, TextComponent} from "obsidian";
 import type JiraTicketDataFetcher from "./main";
 import { JiraFieldMapping, JiraIssue, fetchJiraIssue, JiraFieldOption, suggestFrontmatterKey } from "jira-api";
 
@@ -525,10 +525,12 @@ export class JiraTicketDataFetcherSettingsTab extends PluginSettingTab {
 		        .setName("Use as alias")
 
 		    // Alias template
+			let aliasTemplateText: TextComponent;
 		    new Setting(body)
 		        .setName("Alias template")
 		        .setDesc("{summary}, {status.name}, etc.")
-		        .addText(text =>
+		        .addText(text => {
+					aliasTemplateText = text;
 		            text
 		                .setPlaceholder("{summary} - {status.name}")
 		                .setValue(mapping.aliasTemplate ?? "")
@@ -536,7 +538,32 @@ export class JiraTicketDataFetcherSettingsTab extends PluginSettingTab {
 		                    mapping.aliasTemplate = value;
 		                    await this.plugin.saveSettings();
 		                })
-		        );
+				})
+				.addButton(button => 
+					button
+						.setButtonText("Insert field")
+						.onClick(() => {
+							const allowedFieldOptions = this.plugin.settings.fieldOptions.filter(option => this.plugin.settings.fieldMappings.some(mapping => mapping.jiraField?.trim() === option.path));
+							new JiraFieldSuggestModal(
+								this.app,
+								allowedFieldOptions,
+								"",
+								async (option) => {
+									const inputEl = aliasTemplateText.inputEl;
+									const placeholder = `{${option.path}}`;
+									const start = inputEl.selectionStart ?? inputEl.value.length;
+									const end = inputEl.selectionEnd ?? start;
+									const newValue = 
+									    inputEl.value.slice(0, start) + 
+										placeholder + 
+										inputEl.value.slice(end);
+									mapping.aliasTemplate = newValue;
+									await this.plugin.saveSettings();
+									this.display(); 
+								}
+							).open();
+						})
+				)
 
 	        new Setting(body)
 	            .addButton(btn =>
