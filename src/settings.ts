@@ -103,7 +103,7 @@ export const DEFAULT_SETTINGS: JiraTicketDataFetcherSettings = {
 			frontmatterProperty: 'summary',
 			updateOnOpen: true,
 			useAsAlias: true,
-			aliasTemplate: '{{summary}}',
+			aliasTemplate: '{summary}',
 			userEnteredFrontmatterProperty: false,
 			uuid: "default-summary"
 		}, {
