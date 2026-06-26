@@ -87,32 +87,32 @@ export default class JiraTicketDataFetcher extends Plugin {
 			)
 		})
 		// Expose API for other plugins/scripts
-		this.api = {
-			fetchJiraIssue: this.fetchJiraIssue.bind(this),
-			updateJiraFrontmatter: this.updateJiraFrontmatter.bind(this)
-		};
+		// this.api = {
+		// 	fetchJiraIssue: this.fetchJiraIssue.bind(this),
+		// 	updateJiraFrontmatter: this.updateJiraFrontmatter.bind(this)
+		// };
 
 		//add command to fetch the jira issue and it's data.
-		this.addCommand({
-			id: 'jira-fetch-issue',
-			name: 'Fetch jira issue by key',
-			callback: () => {
-				new JiraKeyPromptModal(this.app, async (issueKey: string) => {
-					try {
-						const issue = await fetchJiraIssue(issueKey, this.settings, {updateOnOpen: false});
-						console.debug("Fetched issue:", issue);
-						// new Notice(`Fetched issue ${issue.key}: ${issue.fields.summary}`);
-						// Here you could also do something with the fetched issue data, like inserting it into the current note.
-					} catch (error) {
-						if (error instanceof Error) {
-							new Notice(`Error fetching issue: ${error.message}`);
-						} else {
-							new Notice('An unknown error occurred while fetching the issue.');
-						}
-					}
-				}).open();
-			}
-		});
+		// this.addCommand({
+		// 	id: 'jira-fetch-issue',
+		// 	name: 'Fetch jira issue by key',
+		// 	callback: () => {
+		// 		new JiraKeyPromptModal(this.app, async (issueKey: string) => {
+		// 			try {
+		// 				const issue = await fetchJiraIssue(issueKey, this.settings, {updateOnOpen: false});
+		// 				console.debug("Fetched issue:", issue);
+		// 				// new Notice(`Fetched issue ${issue.key}: ${issue.fields.summary}`);
+		// 				// Here you could also do something with the fetched issue data, like inserting it into the current note.
+		// 			} catch (error) {
+		// 				if (error instanceof Error) {
+		// 					new Notice(`Error fetching issue: ${error.message}`);
+		// 				} else {
+		// 					new Notice('An unknown error occurred while fetching the issue.');
+		// 				}
+		// 			}
+		// 		}).open();
+		// 	}
+		// });
 
 		
 
