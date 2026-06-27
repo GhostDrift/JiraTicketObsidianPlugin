@@ -1,5 +1,5 @@
 {
-	"id": "Jira-Ticket-data-fetcher",
+	"id": "jira-ticket-data-fetcher",
 	"name": "Jira Ticket Data Fetcher",
 	"version": "1.0.0",
 	"minAppVersion": "0.15.0",
