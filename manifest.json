@@ -1,7 +1,7 @@
 {
 	"id": "jira-ticket-data-fetcher",
 	"name": "Jira Ticket Data Fetcher",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"minAppVersion": "0.15.0",
 	"description": "Fetches data for Jira tickets directly from Obsidian.",
 	"author": "Jessica Crowson",
