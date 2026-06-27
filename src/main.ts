@@ -1,6 +1,6 @@
-import {App, Modal, Notice, Plugin, TFile} from 'obsidian';
+import {Plugin, TFile} from 'obsidian';
 import {DEFAULT_SETTINGS, JiraTicketDataFetcherSettings, JiraTicketDataFetcherSettingsTab} from "./settings";
-import {fetchJiraIssue, JiraIssue, timeToFetch,updateJiraFrontmatter} from "./jira-api";
+import {fetchJiraIssue, JiraIssue, timeToFetch, updateJiraFrontmatter as syncJiraIssueToFrontmatter} from "./jira-api";
 
 // Remember to rename these classes and interfaces!
 
@@ -8,10 +8,6 @@ export default class JiraTicketDataFetcher extends Plugin {
 	settings: JiraTicketDataFetcherSettings;
 	private recentlyCreatedFiles = new Set<string>();
 
-	api!: {
-		fetchJiraIssue: (issueKey: string, onOpenOnly?: boolean) => Promise<JiraIssue>;
-		updateJiraFrontmatter: (issueKey: string, file: TFile, onOpenOnly?: boolean) => Promise<void>;
-	};
 
 	//public method for scripts to fetch issues directly
 	async fetchJiraIssue(issueKey: string, onOpenOnly?: boolean): Promise<JiraIssue> {
@@ -24,7 +20,7 @@ export default class JiraTicketDataFetcher extends Plugin {
 		if (!file) {
 			return;
 		}
-		const tempIssue = await updateJiraFrontmatter(this.app, file, issueKey, this.settings, onOpenOnly ?? false);
+		await syncJiraIssueToFrontmatter(this.app, file, issueKey, this.settings, onOpenOnly ?? false);
 
 
 	}
@@ -86,33 +82,6 @@ export default class JiraTicketDataFetcher extends Plugin {
 				} )
 			)
 		})
-		// Expose API for other plugins/scripts
-		// this.api = {
-		// 	fetchJiraIssue: this.fetchJiraIssue.bind(this),
-		// 	updateJiraFrontmatter: this.updateJiraFrontmatter.bind(this)
-		// };
-
-		//add command to fetch the jira issue and it's data.
-		// this.addCommand({
-		// 	id: 'jira-fetch-issue',
-		// 	name: 'Fetch jira issue by key',
-		// 	callback: () => {
-		// 		new JiraKeyPromptModal(this.app, async (issueKey: string) => {
-		// 			try {
-		// 				const issue = await fetchJiraIssue(issueKey, this.settings, {updateOnOpen: false});
-		// 				console.debug("Fetched issue:", issue);
-		// 				// new Notice(`Fetched issue ${issue.key}: ${issue.fields.summary}`);
-		// 				// Here you could also do something with the fetched issue data, like inserting it into the current note.
-		// 			} catch (error) {
-		// 				if (error instanceof Error) {
-		// 					new Notice(`Error fetching issue: ${error.message}`);
-		// 				} else {
-		// 					new Notice('An unknown error occurred while fetching the issue.');
-		// 				}
-		// 			}
-		// 		}).open();
-		// 	}
-		// });
 
 		
 
@@ -134,48 +103,4 @@ export default class JiraTicketDataFetcher extends Plugin {
 	}
 }
 
-class JiraKeyPromptModal extends Modal {
-	private onSubmit: (issueKey: string) => Promise<void>;
-
-	constructor(app: App, onSubmit: (issueKey: string) => Promise<void>) {
-		super(app);
-		this.onSubmit = onSubmit;
-	}
-
-	onOpen() {
-		const {contentEl} = this;
-
-		contentEl.createEl("h2", { text: "Enter jira issue key"});
-
-		const inputEl = contentEl.createEl("input", {
-			type: "text",
-			placeholder: "e.g. KAN-123",
-		});
-
-		inputEl.addClass("Jira-ticket-prompt")
-
-		inputEl.addEventListener("keydown", (event) => {
-		    if (event.key === "Enter") {
-		        event.preventDefault();
-			
-		        void this.submit(inputEl.value.trim());
-		    }
-		});
-
-		inputEl.focus();
-	}
-
-	async submit(issueKey: string) {
-		if (!issueKey) {
-			new Notice("Please enter a jira issue key.");
-			return;
-		}
-		await this.onSubmit(issueKey);
-		this.close();
-	}
-
-	onClose() {
-		this.contentEl.empty();
-	}
-}
 

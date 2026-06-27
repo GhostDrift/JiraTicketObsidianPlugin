@@ -10,7 +10,7 @@ export class JiraFieldSuggestModal
 	private fieldOptions: JiraFieldOption[];
 
 	private onChoose:
-		(option: JiraFieldOption) => void;
+		(option: JiraFieldOption) => void | Promise<void>;
 
 	constructor(
 		app: App,
@@ -18,7 +18,7 @@ export class JiraFieldSuggestModal
 		initialQuery: string,
 		onChoose: (
 			option: JiraFieldOption
-		) => void
+		) => void | Promise<void>
 	) {
 		super(app);
 
@@ -55,7 +55,7 @@ export class JiraFieldSuggestModal
 		item: JiraFieldOption
 	): void {
 
-		this.onChoose(item);
+		void this.onChoose(item);
 	}
 
 	renderSuggestion(
@@ -140,6 +140,17 @@ export class JiraTicketDataFetcherSettingsTab extends PluginSettingTab {
 	constructor(app: App, plugin: JiraTicketDataFetcher) {
 		super(app, plugin);
 		this.plugin = plugin;
+	}
+
+	private renderSettings(): void {
+		const {containerEl} = this;
+		containerEl.empty();
+		
+		const layout = containerEl.createDiv("jira-settings-layout");
+		const sidebar = layout.createDiv("jira-sidebar");
+		const content = layout.createDiv("jira-content");
+
+		this.renderSidebar(sidebar,content);
 	}
 
 	display(): void {
@@ -481,7 +492,7 @@ export class JiraTicketDataFetcherSettingsTab extends PluginSettingTab {
 								
 								    void this.plugin.saveSettings()
 								    
-									this.display();
+									this.renderSettings();
 								}
 							).open();
 						})
@@ -558,7 +569,7 @@ export class JiraTicketDataFetcherSettingsTab extends PluginSettingTab {
 										inputEl.value.slice(end);
 									mapping.aliasTemplate = newValue;
 									await this.plugin.saveSettings();
-									this.display(); 
+									this.renderSettings(); 
 								}
 							).open();
 						})
