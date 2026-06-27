@@ -230,7 +230,7 @@ export class JiraTicketDataFetcherSettingsTab extends PluginSettingTab {
 
 	createCard(container: HTMLElement, title: string) {
 	    const card = container.createDiv("jira-card");
-	    card.createEl("h3", { text: title });
+		new Setting(card).setName(title).setHeading();
 
 	    return card;
 	}
