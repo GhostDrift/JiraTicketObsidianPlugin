@@ -292,13 +292,53 @@ export class JiraTicketDataFetcherSettingsTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				});
 			});
-
-		const fetchExampleBtn = jiraIssueCard.createEl("button", {
+		
+		const fetchRow = jiraIssueCard.createDiv();
+		fetchRow.addClass("jira-status-row");
+		
+		const fetchExampleBtn = fetchRow.createEl("button", {
 			text: "Fetch fields"
 		});
 
+		const statusEl = fetchRow.createEl("div", {
+			text: this.plugin.settings.fieldOptions.length > 0
+				? "Fields available."
+				: "No fields available. Fetch a sample issue to populate field options."
+		});
+		statusEl.addClass("jira-status-message");
+		if (this.plugin.settings.fieldOptions.length > 0) {
+			statusEl.addClass("jira-status-success");
+		} else {
+			statusEl.addClass("jira-status-error");
+		}
+
 		fetchExampleBtn.onclick = async () => {
-			await fetchJiraIssue(this.plugin.settings.sampleKey, this.plugin.settings, {allFields: true})
+			fetchExampleBtn.disabled = true;
+			statusEl.setText("Fetching fields...");
+			statusEl.removeClass("jira-status-success");
+			statusEl.removeClass("jira-status-error");
+			statusEl.addClass("jira-status-loading");
+
+			try {
+				await fetchJiraIssue(this.plugin.settings.sampleKey, this.plugin.settings, {allFields: true});
+
+				if (this.plugin.settings.fieldOptions.length > 0) {
+					statusEl.setText("Fields fetched successfully.");
+					statusEl.removeClass("jira-status-loading");
+					statusEl.addClass("jira-status-success");
+				} else {
+					statusEl.setText("No fields available. Fetch a sample issue to populate field options.");
+					statusEl.removeClass("jira-status-loading");
+					statusEl.addClass("jira-status-error");
+				}
+			} catch (error) {
+				const message = error instanceof Error ? error.message : "Failed to fetch fields.";
+				statusEl.setText(message);
+				statusEl.removeClass("jira-status-loading");
+				statusEl.addClass("jira-status-error");
+			} finally {
+				fetchExampleBtn.disabled = false;
+			}
 		}
 
 	    const card = this.createCard(container, "Field Mappings");

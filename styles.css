@@ -158,3 +158,27 @@
     width: 100%;
     margin-top: 0.5rem
 }
+
+.jira-status-message {
+    margin-top: 0.5rem;
+    font-size: 0.9em;
+}
+
+.jira-status-loading {
+    color: var(--text-muted);
+}
+
+.jira-status-success {
+    color: var(--text-success, #2e7d32);
+}
+
+.jira-status-error {
+    color: var(--text-error, #c62828);
+}
+
+.jira-status-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top:0.5rem;
+}
