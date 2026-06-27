@@ -219,7 +219,6 @@ export class JiraTicketDataFetcherSettingsTab extends PluginSettingTab {
 
 	createCard(container: HTMLElement, title: string) {
 	    const card = container.createDiv("jira-card");
-		// eslint-disable-next-line obsidianmd/settings-tab/no-manual-html-headings
 	    card.createEl("h3", { text: title });
 
 	    return card;
