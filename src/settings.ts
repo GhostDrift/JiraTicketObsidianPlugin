@@ -616,16 +616,15 @@ export class JiraTicketDataFetcherSettingsTab extends PluginSettingTab {
 				)
 
 	        new Setting(body)
-	            .addButton(btn =>
-	                btn
-	                    .setButtonText("Delete")
-	                    .setWarning()
-	                    .onClick(async () => {
-	                        this.plugin.settings.fieldMappings.splice(index, 1);
-	                        await this.plugin.saveSettings();
-	                        this.renderSection("fields", container);
-	                    })
-	            );
+	            .addButton(btn => {
+	                btn.setButtonText("Delete");
+	                btn.buttonEl.classList.add("mod-warning");
+	                btn.onClick(async () => {
+	                    this.plugin.settings.fieldMappings.splice(index, 1);
+	                    await this.plugin.saveSettings();
+	                    this.renderSection("fields", container);
+	                });
+	            });
 	    });
 	}
 
