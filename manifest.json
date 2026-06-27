@@ -3,7 +3,7 @@
 	"name": "Jira Ticket Data Fetcher",
 	"version": "1.0.1",
 	"minAppVersion": "0.15.0",
-	"description": "Fetches data for Jira tickets directly from Obsidian.",
+	"description": "Fetches data for Jira tickets and adds them to your notes.",
 	"author": "Jessica Crowson",
 	"authorUrl": "https://github.com/GhostDrift",
 	"isDesktopOnly": false
