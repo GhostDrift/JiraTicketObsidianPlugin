@@ -660,7 +660,7 @@ export class JiraTicketDataFetcherSettingsTab extends PluginSettingTab {
 		
 		new Setting(card)
 			.setName("Sync from bases queries")
-			.setDesc("When a note whose filename matches a jira key appears in a bases query result, fetch and update its frontmatter using the fields marked \"update on open\".")
+			.setDesc("When a note who's file name matches a jira key appears in a jira sync view base query result, fetch and update it's frontmatter using the fields marked \"update on open\".")
 			.addToggle(t =>
 				t.setValue(this.plugin.settings.syncOnBasesQuery)
 					.onChange(async v => {

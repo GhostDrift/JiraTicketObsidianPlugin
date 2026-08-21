@@ -34,6 +34,7 @@ Each mapping includes:
 - `Update on open`: when enabled, the field is refreshed when the note opens.
 - `Use as alias`: when enabled, this mapping contributes to the note alias.
 - `Alias template`: a template string using placeholders like `{summary}` and `{account}`.
+- `Save as link`: Will save the value of the jira field as an Obsidian note link in your note's properties. 
 
 #### Sample key usage
 Use `Sample key` and click `Fetch fields` to load real Jira fields from an example issue.
@@ -51,11 +52,14 @@ Important:
 
 ## Sync behavior
 - `Sync on open`: fetches data when a note is opened, if its filename looks like a Jira key.
-- `Sync issue link`: saves the issue URL into frontmatter.
-- `Save to note`: inserts the issue URL into the note near your configured marker.
+- `Sync from bases queries`: When a note who's file name matches a jira key appears in a jira sync view base query result, fetch and update it's frontmatter using the fields marked "update on open".
 - `Sync interval`: minimum minutes between fetches, to reduce API usage.
 
 The plugin also attempts fetches for newly created notes and on note rename.
+
+## New custom bases view `Jira Sync`
+- Use this bases view to sync all of the notes in it's results. 
+- This custom view is modeled after the basic table view. 
 
 ## Troubleshooting
 - If `Fetch fields` does not populate field choices, verify your Jira connection settings and sample key.
