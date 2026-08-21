@@ -106,20 +106,23 @@ export const DEFAULT_SETTINGS: JiraTicketDataFetcherSettings = {
 			useAsAlias: true,
 			aliasTemplate: '{summary}',
 			userEnteredFrontmatterProperty: false,
-			uuid: "default-summary"
+			uuid: "default-summary",
+			saveAsLink: false,
 		}, {
 			jiraField: 'status.name',
 			frontmatterProperty: 'status',
 			useAsAlias: false,
 			updateOnOpen: true,
 			userEnteredFrontmatterProperty: false,
-			uuid: "default-status"
+			uuid: "default-status",
+			saveAsLink: false,
 		}, {
 			jiraField: 'assignee.displayName',
 			frontmatterProperty: 'assignee',
 			updateOnOpen: true,
 			userEnteredFrontmatterProperty: false,
-			uuid: "default-assignee"
+			uuid: "default-assignee",
+			saveAsLink: false,
 		}
 	], //default fields to fetch
 	syncOnOpen: true,
@@ -367,7 +370,8 @@ export class JiraTicketDataFetcherSettingsTab extends PluginSettingTab {
 	            frontmatterProperty: "",
 	            updateOnOpen: true,
 			    userEnteredFrontmatterProperty: false,
-				uuid: newId
+				uuid: newId,
+				saveAsLink: false
 	        });
 
 			// Add the new mapping to the expanded set so it opens immediately for configuration
@@ -575,6 +579,16 @@ export class JiraTicketDataFetcherSettingsTab extends PluginSettingTab {
 	                    })
 				)
 		        .setName("Use as alias")
+			new Setting(body)
+			    .addToggle(t =>
+					t.setValue(mapping.saveAsLink ?? false)
+	                    .onChange(async v => {
+	                        mapping.saveAsLink = v;
+	                        await this.plugin.saveSettings();
+	                    })
+				)
+		        .setName("Save as link")
+				.setDesc("Will save the property value as a link to an obsidian note.")
 
 		    // Alias template
 			let aliasTemplateText: TextComponent;

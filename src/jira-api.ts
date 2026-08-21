@@ -20,6 +20,7 @@ export interface JiraFieldMapping {
     useAsAlias?: boolean; //whether to use this field as an alias in Obsidian (can be used for fields like summary)
     aliasTemplate?: string; //template for the alias property
     userEnteredFrontmatterProperty: boolean;
+    saveAsLink: boolean;
 }
 
 export interface JiraFieldOption {
@@ -201,7 +202,10 @@ export async function updateJiraFrontmatter(app: App, file: TFile, issueKey: str
                     if (!mapping.updateOnOpen) continue; //skip fields that are not set to update on open
                 }
 				
-				const value = getNestedValue(jiraIssue.fields, mapping.jiraField);
+				let value = getNestedValue(jiraIssue.fields, mapping.jiraField);
+                if (value !== undefined && mapping.saveAsLink) {
+                    value = "[[" + value + "]]";
+                }
 				if (value !== undefined) {
 					fm[mapping.frontmatterProperty] = value;
 				}
