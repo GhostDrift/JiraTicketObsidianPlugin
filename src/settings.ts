@@ -91,6 +91,7 @@ export interface JiraTicketDataFetcherSettings {
 	lastFetchedIssue: JiraIssue | null;
 	sampleKey: string;
 	fieldOptions: JiraFieldOption[];
+	syncOnBasesQuery: boolean;
 }
 
 export const DEFAULT_SETTINGS: JiraTicketDataFetcherSettings = {
@@ -129,7 +130,8 @@ export const DEFAULT_SETTINGS: JiraTicketDataFetcherSettings = {
 	linkMarker: "",
 	lastFetchedIssue: null,
 	sampleKey: "",
-	fieldOptions: []
+	fieldOptions: [],
+	syncOnBasesQuery: false
 }
 
 export class JiraTicketDataFetcherSettingsTab extends PluginSettingTab {
@@ -638,6 +640,17 @@ export class JiraTicketDataFetcherSettingsTab extends PluginSettingTab {
 				t.setValue(this.plugin.settings.syncOnOpen)
 					.onChange(async v => {
 						this.plugin.settings.syncOnOpen = v;
+						await this.plugin.saveSettings();
+					})
+			)
+		
+		new Setting(card)
+			.setName("Sync from bases queries")
+			.setDesc("When a note whose filename matches a jira key appears in a bases query result, fetch and update its frontmatter using the fields marked \"update on open\".")
+			.addToggle(t =>
+				t.setValue(this.plugin.settings.syncOnBasesQuery)
+					.onChange(async v => {
+						this.plugin.settings.syncOnBasesQuery = v;
 						await this.plugin.saveSettings();
 					})
 			)

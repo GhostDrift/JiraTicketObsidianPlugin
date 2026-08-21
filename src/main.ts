@@ -1,6 +1,7 @@
 import {Plugin, TFile} from 'obsidian';
 import {DEFAULT_SETTINGS, JiraTicketDataFetcherSettings, JiraTicketDataFetcherSettingsTab} from "./settings";
 import {fetchJiraIssue, JiraIssue, timeToFetch, updateJiraFrontmatter as syncJiraIssueToFrontmatter} from "./jira-api";
+import {JiraSyncBasesView, JIRA_SYNC_VIEW_TYPE} from "./bases-view";
 
 // Remember to rename these classes and interfaces!
 
@@ -83,6 +84,13 @@ export default class JiraTicketDataFetcher extends Plugin {
 			)
 		})
 
+		//Register the custom bases view that will sync meta data from results. 
+		this.registerBasesView(JIRA_SYNC_VIEW_TYPE, {
+			name: "Jira Sync",
+			icon: "lucide-refresh-cw",
+			factory:(controller,containerEL) =>
+				new JiraSyncBasesView(controller, containerEL, this)
+		});
 		
 
 		// This adds a settings tab so the user can configure various aspects of the plugin
