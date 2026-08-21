@@ -656,16 +656,20 @@ export class JiraTicketDataFetcherSettingsTab extends PluginSettingTab {
 			)
 		
 		new Setting(card)
-			.setName("Sync interval")
-			.setDesc("The minimum amount of time between sync calls in minutes, reduces API usage.")
-			.addText( text => text
-				.setValue(String(this.plugin.settings.syncInterval))
-				.onChange( async (value) => {
-					text.inputEl.type = "number";
-					this.plugin.settings.syncInterval = Number(value);
-					await this.plugin.saveSettings();
-				})
+    		.setName("Sync interval")
+    		.setDesc("The minimum amount of time between sync calls in minutes, reduces API usage.")
+    		.addText(text => {
+    		    text.inputEl.type = "number";
+    		    text.inputEl.min = "1";
+    		    text.setValue(String(this.plugin.settings.syncInterval))
+    		    text.inputEl.addEventListener("blur", async () => {
+        		    const parsed = Number(text.getValue());
+        		    const clamped = Number.isFinite(parsed) ? Math.max(1, Math.floor(parsed)) : 1;
 
-			);
+        		    this.plugin.settings.syncInterval = clamped;
+        		    text.setValue(String(clamped));
+        		    await this.plugin.saveSettings();
+        		});
+    		});
 	}
 }
