@@ -1,7 +1,7 @@
 {
 	"id": "jira-ticket-data-fetcher",
 	"name": "Jira Ticket Data Fetcher",
-	"version": "1.0.4",
+	"version": "1.1.0",
 	"minAppVersion": "1.4.4",
 	"description": "Fetches data for Jira tickets and adds them to your notes.",
 	"author": "Jessica Crowson",
