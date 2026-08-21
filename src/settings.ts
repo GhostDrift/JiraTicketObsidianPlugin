@@ -588,7 +588,7 @@ export class JiraTicketDataFetcherSettingsTab extends PluginSettingTab {
 	                    })
 				)
 		        .setName("Save as link")
-				.setDesc("Will save the property value as a link to an obsidian note.")
+				.setDesc("Will save the property value as a link to an Obsidian note.")
 
 		    // Alias template
 			let aliasTemplateText: TextComponent;
@@ -676,14 +676,16 @@ export class JiraTicketDataFetcherSettingsTab extends PluginSettingTab {
     		    text.inputEl.type = "number";
     		    text.inputEl.min = "1";
     		    text.setValue(String(this.plugin.settings.syncInterval))
-    		    text.inputEl.addEventListener("blur", async () => {
-        		    const parsed = Number(text.getValue());
-        		    const clamped = Number.isFinite(parsed) ? Math.max(1, Math.floor(parsed)) : 1;
-
-        		    this.plugin.settings.syncInterval = clamped;
-        		    text.setValue(String(clamped));
-        		    await this.plugin.saveSettings();
-        		});
+    		    text.inputEl.addEventListener("blur", () => {
+				    void (async () => {
+				        const parsed = Number(text.getValue());
+				        const clamped = Number.isFinite(parsed) ? Math.max(1, Math.floor(parsed)) : 1;
+					
+				        this.plugin.settings.syncInterval = clamped;
+				        text.setValue(String(clamped));
+				        await this.plugin.saveSettings();
+				    })();
+				});
     		});
 	}
 }

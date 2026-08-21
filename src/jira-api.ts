@@ -204,7 +204,7 @@ export async function updateJiraFrontmatter(app: App, file: TFile, issueKey: str
 				
 				let value = getNestedValue(jiraIssue.fields, mapping.jiraField);
                 if (value !== undefined && mapping.saveAsLink) {
-                    value = "[[" + value + "]]";
+                    value = "[[" + toDisplayString(value) + "]]";
                 }
 				if (value !== undefined) {
 					fm[mapping.frontmatterProperty] = value;
@@ -213,7 +213,7 @@ export async function updateJiraFrontmatter(app: App, file: TFile, issueKey: str
 					if (mapping.aliasTemplate) {
 						aliasParts.push(resolveTemplate(mapping.aliasTemplate, jiraIssue));
 					} else {
-						aliasParts.push(String(value));
+						aliasParts.push(toDisplayString(value));
 					}
 				}
 			}
@@ -392,4 +392,12 @@ export function suggestFrontmatterKey( path: string, label?: string): string {
         words.slice(1).map((w => w.charAt(0).toUpperCase() +
                                  w.slice(1).toLowerCase())).join("")
     );
+}
+
+function toDisplayString(value: unknown): string {
+    if (value === null || value === undefined) return "";
+    if (typeof value === "string") return value;
+    if (typeof value === "number" || typeof value === "boolean") return String(value);
+    if (Array.isArray(value)) return value.map(toDisplayString).join(", ");
+    return JSON.stringify(value);
 }
