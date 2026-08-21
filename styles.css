@@ -232,7 +232,7 @@
     border-bottom: none;
 }
 
-.jira-sync-table th:hover {
+.jira-sync-table-th:hover {
 	background: var(--bases-table-header-background-hover, var(--background-modifier-hover));
 }
 
@@ -240,31 +240,6 @@
 	height: var(--bases-table-row-height, auto);
 	border-bottom: var(--bases-table-row-border-width, 1px) solid
 		var(--bases-table-border-color, var(--background-modifier-border));
-}
-
-.jira-sync-table tbody tr:hover {
-	background: var(--bases-table-row-background-hover, var(--background-modifier-hover));
-}
-
-.jira-sync-table td {
-	padding: var(--size-4-2) var(--size-4-3);
-	max-width: var(--bases-table-column-max-width, 30em);
-	min-width: var(--bases-table-column-min-width, 4em);
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-    border-right: none;
-    border-left: var(--bases-table-row-border-width, 1px) solid
-        var(--bases-table-border-color, var(--background-modifier-border));
-}
-
-.jira-sync-table tr td:first-of-type {
-    border-left: none;
-}
-
-
-.jira-sync-table a.internal-link:hover {
-	text-decoration: underline;
 }
 
 .jira-sync-empty {

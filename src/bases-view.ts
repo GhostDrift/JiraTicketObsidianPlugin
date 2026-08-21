@@ -73,7 +73,7 @@ export class JiraSyncBasesView extends BasesView {
         order.forEach((propId, index) => {
             const tColumn = table.createDiv({cls: "jira-sync-table-column"})
             const th = tColumn.createDiv({
-                cls: "jira-sync-table-td",
+                cls: "jira-sync-table-td jira-sync-table-th",
                 text: this.config.getDisplayName(propId),
                 attr: { draggable: "true" },
             });
